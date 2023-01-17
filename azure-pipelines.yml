@@ -22,3 +22,5 @@ stages:
         command: 'preview'
         cwd: "infra/"
         stack: 'flyballstats.com'
+      env:
+        PULUMI_ACCESS_TOKEN: $(pulumi_access_token)
