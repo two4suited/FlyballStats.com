@@ -40,7 +40,7 @@ stages:
     steps:
     - task: AzureStaticWebApp@0
       inputs:
-        app_location: 'web/src'
+        app_location: 'web'
         api_location: 'api'
         production_branch: 'main'
         azure_static_web_apps_api_token: $(deployment_token)
