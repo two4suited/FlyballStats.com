@@ -18,10 +18,9 @@ return await Pulumi.Deployment.RunAsync(() =>
         ResourceGroupName = resourceGroup.Name,
         Sku = new AzureNative.Web.Inputs.SkuDescriptionArgs
         {
-            Name = "Basic",
-            Tier = "Basic",
-        }, 
-        
+            Name = "Free",
+            Tier = "Free",
+        },
     });
 
 });
