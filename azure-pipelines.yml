@@ -10,9 +10,9 @@ pool:
   vmImage: ubuntu-latest
 
 stages:
-- stage: Infrastructure
+- stage:
   jobs:
-  - job: 
+  - job: infrastructure
     displayName: Preview/Deploy Infrastrucutre
     steps:    
     - task: Pulumi@1
@@ -34,7 +34,9 @@ stages:
         stack: 'two4suited/flyballstats.com/dev'
       env:
         PULUMI_ACCESS_TOKEN: $(pulumi_access_token)
-  - job:
+  - job: code
+    displayName: Deploy
+    dependsOn: infrastructure
     steps:
     - task: Bash@3
       inputs:
