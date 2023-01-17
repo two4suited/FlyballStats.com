@@ -9,11 +9,15 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
-
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+stages:
+- stage: Infrastructure
+  jobs:
+  - job: 
+    displayName: Deploy Infrastrucutre
+    steps:    
+    - task: Pulumi@1
+      inputs:
+        azureSubscription: 'Pay-As-You-Go(3bd10068-0c35-4ed1-8436-1b052ac96a2b)'
+        command: 'preview'
+        cwd: "infra/"
+        stack: 'flyballstats.com'
