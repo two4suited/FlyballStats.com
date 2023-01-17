@@ -34,7 +34,7 @@ stages:
         stack: 'two4suited/flyballstats.com/dev'
       env:
         PULUMI_ACCESS_TOKEN: $(pulumi_access_token)
-- stage: Deploy Code
+- stage: Deploy_Code
   jobs:
   - job:
     steps:
