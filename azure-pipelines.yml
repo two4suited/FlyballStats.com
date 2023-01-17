@@ -43,5 +43,6 @@ stages:
         app_location: 'web/src'
         api_location: 'api'
         production_branch: 'main'
+        azure_static_web_apps_api_token: $(deployment_token)
 
   
