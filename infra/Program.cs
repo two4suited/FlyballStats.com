@@ -9,7 +9,10 @@ using AzureNative = Pulumi.AzureNative;
 return await Pulumi.Deployment.RunAsync(() =>
 {
     // Create an Azure Resource Group
-    var resourceGroup = new ResourceGroup("FlyballStats.com");
+    var resourceGroup = new ResourceGroup("FlyballStats.com", new ResourceGroupArgs()
+    {
+        ResourceGroupName = "FlyballStats.com"
+    });
 
     var staticWebApp = new AzureNative.Web.StaticSite("staticSite", new()
     {
