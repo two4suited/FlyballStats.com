@@ -34,14 +34,14 @@ stages:
         stack: 'two4suited/flyballstats.com/dev'
       env:
         PULUMI_ACCESS_TOKEN: $(pulumi_access_token)
-- stage: Deploy_Code
-  jobs:
   - job:
     steps:
     - task: Bash@3
       inputs:
-        targetType: 'inline'
-        script: |
-          # Write your commands here
-          
-          echo 'Hello world'
+           targetType: 'inline'
+           script: |
+                # Write your commands here
+                
+                echo 'Hello world'
+
+  
