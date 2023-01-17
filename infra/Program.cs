@@ -15,6 +15,10 @@ return await Pulumi.Deployment.RunAsync(() =>
     {
         Location = resourceGroup.Location,
         Name = "FlyballStatscom",
+        BuildProperties = new AzureNative.Web.Inputs.StaticSiteBuildPropertiesArgs
+        {
+            SkipGithubActionWorkflowGeneration = true
+        },
         ResourceGroupName = resourceGroup.Name,
         Sku = new AzureNative.Web.Inputs.SkuDescriptionArgs
         {
