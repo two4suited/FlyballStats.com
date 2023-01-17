@@ -13,13 +13,22 @@ stages:
 - stage: Infrastructure
   jobs:
   - job: 
-    displayName: Preview Infrastrucutre
+    displayName: Preview/Deploy Infrastrucutre
     steps:    
     - task: Pulumi@1
-      displayName: Run Preview Infrastructure
+      displayName: Preview Infrastructure
       inputs:
         azureSubscription: 'Pay-As-You-Go(3bd10068-0c35-4ed1-8436-1b052ac96a2b)'
         command: 'preview'
+        cwd: "infra/"
+        stack: 'two4suited/flyballstats.com/dev'
+      env:
+        PULUMI_ACCESS_TOKEN: $(pulumi_access_token)
+    - task: Pulumi@1
+      displayName: Deploy Infrastructure
+      inputs:
+        azureSubscription: 'Pay-As-You-Go(3bd10068-0c35-4ed1-8436-1b052ac96a2b)'
+        command: 'up'
         cwd: "infra/"
         stack: 'two4suited/flyballstats.com/dev'
       env:
