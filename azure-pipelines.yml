@@ -21,6 +21,6 @@ stages:
         azureSubscription: 'Pay-As-You-Go(3bd10068-0c35-4ed1-8436-1b052ac96a2b)'
         command: 'preview'
         cwd: "infra/"
-        stack: 'flyballstats.com'
+        stack: 'two4suited/flyballstats.com/dev'
       env:
         PULUMI_ACCESS_TOKEN: $(pulumi_access_token)
