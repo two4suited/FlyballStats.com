@@ -14,7 +14,7 @@ return await Pulumi.Deployment.RunAsync(() =>
     var staticWebApp = new AzureNative.Web.StaticSite("staticSite", new()
     {
         Location = resourceGroup.Location,
-        Name = "FlyballStats.com",
+        Name = "FlyballStatscom",
         ResourceGroupName = resourceGroup.Name,
         Sku = new AzureNative.Web.Inputs.SkuDescriptionArgs
         {
