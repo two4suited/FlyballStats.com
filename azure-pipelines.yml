@@ -38,12 +38,11 @@ stages:
     displayName: Deploy
     dependsOn: infrastructure
     steps:
-    - task: Bash@3
+    - task: AzureStaticWebApp@0
       inputs:
-           targetType: 'inline'
-           script: |
-                # Write your commands here
-                
-                echo 'Hello world'
+        app_location: 'web'
+        api_location: 'api'
+        production_branch: 'main'
+        azure_static_web_apps_api_token: $(deployment_token)
 
   
