@@ -10,7 +10,7 @@ jobs:
     name: Preview/Deploy Infrastructure
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@2
+      - uses: actions/checkout@v3
       - uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -38,4 +38,4 @@ jobs:
     needs: [infrastructure, run_unit_tests]
     runs-on: ubuntu-latest
     steps:
-      - uses: action/checkout@2
+      - uses: action/checkout@v3
