@@ -3,12 +3,37 @@ name: Deploy Azure Static Web App(.Net functions/React FrontEnd)
 on:
   push:
     branches:
-    - ["main"]
-    
+    - main
+
 jobs:
   infrastructure:
     name: Preview/Deploy Infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@2
+      - uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
   run_unit_tests:
     name: Run Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 6.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --no-restore
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
   deploy:
     name: Deploy Code
+    needs: [infrastructure, run_unit_tests]
+    runs-on: ubuntu-latest
