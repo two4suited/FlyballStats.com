@@ -1,0 +1,7 @@
+jobs:
+  infrastructure:
+    name: Preview/Deploy Infrastructure
+  run_unit_tests:
+    name: Run Unit Tests
+  deploy:
+    name: Deploy Code
