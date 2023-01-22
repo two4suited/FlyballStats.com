@@ -37,3 +37,5 @@ jobs:
     name: Deploy Code
     needs: [infrastructure, run_unit_tests]
     runs-on: ubuntu-latest
+    steps:
+      - uses: action/checkout@2
