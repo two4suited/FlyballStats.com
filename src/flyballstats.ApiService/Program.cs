@@ -64,6 +64,13 @@ app.MapGet("/tournaments/{tournamentId}", (string tournamentId, TournamentDataSe
 })
 .WithName("GetTournament");
 
+app.MapGet("/tournaments/{tournamentId}/exists", (string tournamentId, TournamentDataService dataService) =>
+{
+    var exists = dataService.TournamentExists(tournamentId);
+    return Results.Ok(new { Exists = exists });
+})
+.WithName("CheckTournamentExists");
+
 // Ring configuration endpoints
 app.MapPost("/tournaments/{tournamentId}/rings", (string tournamentId, RingConfigurationRequest request, TournamentDataService dataService) =>
 {

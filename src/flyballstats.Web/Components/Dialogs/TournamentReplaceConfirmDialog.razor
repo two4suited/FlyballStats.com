@@ -1,0 +1,44 @@
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Class="px-0">
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" />
+                <strong>Tournament Already Exists</strong>
+            </MudAlert>
+            
+            <MudText Typo="Typo.body1" Class="mb-3">
+                A tournament with ID "<strong>@TournamentId</strong>" already exists.
+            </MudText>
+            
+            <MudText Typo="Typo.body2" Class="mb-4">
+                Uploading this CSV will completely replace the existing tournament data with @RaceCount new races.
+                This action cannot be undone.
+            </MudText>
+            
+            <MudText Typo="Typo.body2" Class="mb-2">
+                <strong>Are you sure you want to continue?</strong>
+            </MudText>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton Color="Color.Warning" 
+                   Variant="Variant.Filled" 
+                   OnClick="Confirm"
+                   StartIcon="@Icons.Material.Filled.Warning">
+            Replace Tournament Data
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IDialogReference MudDialog { get; set; } = null!;
+    
+    [Parameter] public string TournamentId { get; set; } = string.Empty;
+    [Parameter] public int RaceCount { get; set; }
+
+    private void Cancel() => MudDialog.Close();
+    private void Confirm() => MudDialog.Close(DialogResult.Ok(true));
+}

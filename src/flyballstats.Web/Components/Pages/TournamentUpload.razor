@@ -1,7 +1,12 @@
 @page "/tournament-upload"
 @using Microsoft.AspNetCore.Components.Forms
+@using flyballstats.Web.Services
+@using flyballstats.Web.Components.Dialogs
 @inject TournamentApiClient TournamentApi
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ErrorReportService ErrorReportService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Upload Tournament CSV</PageTitle>
 
@@ -106,15 +111,71 @@
             
             @if (uploadResult.Errors != null && uploadResult.Errors.Count > 0)
             {
-                <MudText Typo="Typo.h6" Class="mt-4 mb-2">Validation Errors:</MudText>
-                <MudDataGrid Items="@uploadResult.Errors" Dense="true" Hover="true">
-                    <Columns>
-                        <PropertyColumn Property="x => x.RowNumber" Title="Row" />
-                        <PropertyColumn Property="x => x.Field" Title="Field" />
-                        <PropertyColumn Property="x => x.Value" Title="Value" />
-                        <PropertyColumn Property="x => x.Reason" Title="Reason" />
-                    </Columns>
-                </MudDataGrid>
+                var errorSummary = ErrorReportService.GenerateErrorSummary(uploadResult.Errors);
+                
+                <!-- Error Summary Section -->
+                <MudCard Class="mt-4">
+                    <MudCardHeader>
+                        <CardHeaderContent>
+                            <MudText Typo="Typo.h6">
+                                <MudIcon Icon="@Icons.Material.Filled.Error" Class="mr-2" />
+                                Error Summary (@errorSummary.TotalErrors errors found)
+                            </MudText>
+                        </CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Primary" 
+                                       StartIcon="@Icons.Material.Filled.Download"
+                                       OnClick="@(() => DownloadErrorReport("csv"))"
+                                       Size="Size.Small">
+                                Download CSV
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Secondary" 
+                                       StartIcon="@Icons.Material.Filled.Download"
+                                       OnClick="@(() => DownloadErrorReport("txt"))"
+                                       Size="Size.Small"
+                                       Class="ml-2">
+                                Download Report
+                            </MudButton>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudText Typo="Typo.body2" Class="mb-3">
+                            Please fix these errors in your CSV file before re-uploading:
+                        </MudText>
+                        
+                        @if (errorSummary.ErrorsByType.Count > 0)
+                        {
+                            <MudGrid>
+                                @foreach (var errorType in errorSummary.ErrorsByType)
+                                {
+                                    <MudItem xs="6" sm="4" md="3">
+                                        <MudAlert Severity="Severity.Warning" Dense="true">
+                                            <MudText Typo="Typo.body2">
+                                                <strong>@errorType.FieldName:</strong> @errorType.Count error(s)
+                                            </MudText>
+                                        </MudAlert>
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        }
+                    </MudCardContent>
+                </MudCard>
+
+                <!-- Detailed Errors Table -->
+                <MudExpansionPanels Class="mt-4">
+                    <MudExpansionPanel Text="View Detailed Errors">
+                        <MudDataGrid Items="@uploadResult.Errors" Dense="true" Hover="true" Filterable="true">
+                            <Columns>
+                                <PropertyColumn Property="x => x.RowNumber" Title="Row" />
+                                <PropertyColumn Property="x => x.Field" Title="Field" />
+                                <PropertyColumn Property="x => x.Value" Title="Value" />
+                                <PropertyColumn Property="x => x.Reason" Title="Reason" />
+                            </Columns>
+                        </MudDataGrid>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
             }
         }
     </MudPaper>
@@ -169,7 +230,31 @@
 
         try
         {
+            // Check if tournament already exists
+            var tournamentExists = await TournamentApi.TournamentExistsAsync(uploadModel.TournamentId!);
+            
+            if (tournamentExists)
+            {
+                // Show confirmation dialog
+                var parameters = new DialogParameters<TournamentReplaceConfirmDialog>
+                {
+                    { x => x.TournamentId, uploadModel.TournamentId! },
+                    { x => x.RaceCount, 0 } // We don't know race count yet, but we'll update this if needed
+                };
+
+                var dialog = await DialogService.ShowAsync<TournamentReplaceConfirmDialog>("Confirm Tournament Replacement", parameters);
+                var result = await dialog.Result;
+
+                if (result?.Canceled == true || result == null)
+                {
+                    Snackbar.Add("Upload canceled", Severity.Info);
+                    return;
+                }
+            }
+
+            // Proceed with upload
             uploadResult = await TournamentApi.UploadCsvAsync(uploadModel.TournamentId!, uploadModel.TournamentName!, csvContent);
+            
             if (uploadResult.Success)
             {
                 Snackbar.Add("Tournament data uploaded successfully!", Severity.Success);
@@ -187,6 +272,42 @@
         finally
         {
             isUploading = false;
+        }
+    }
+
+    private async Task DownloadErrorReport(string format)
+    {
+        if (uploadResult?.Errors == null || uploadResult.Errors.Count == 0)
+            return;
+
+        try
+        {
+            string content;
+            string fileName;
+            string mimeType;
+
+            if (format == "csv")
+            {
+                content = ErrorReportService.GenerateErrorReportCsv(uploadResult.Errors);
+                fileName = $"tournament-errors-{uploadModel.TournamentId}-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+                mimeType = "text/csv";
+            }
+            else
+            {
+                content = ErrorReportService.GenerateErrorReportText(uploadResult.Errors);
+                fileName = $"tournament-errors-{uploadModel.TournamentId}-{DateTime.Now:yyyyMMdd-HHmmss}.txt";
+                mimeType = "text/plain";
+            }
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            var base64 = Convert.ToBase64String(bytes);
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64, mimeType);
+            
+            Snackbar.Add($"Error report downloaded: {fileName}", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error downloading report: {ex.Message}", Severity.Error);
         }
     }
 
