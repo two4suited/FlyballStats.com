@@ -120,12 +120,25 @@
         if (file.Size > 1024 * 1024) // 1MB limit
         {
             await JSRuntime.InvokeVoidAsync("alert", "File size must be less than 1MB");
+            csvContent = null;
+            StateHasChanged();
             return;
         }
 
-        using var stream = file.OpenReadStream();
-        using var reader = new StreamReader(stream);
-        csvContent = await reader.ReadToEndAsync();
+        try
+        {
+            using var stream = file.OpenReadStream();
+            using var reader = new StreamReader(stream);
+            csvContent = await reader.ReadToEndAsync();
+            StateHasChanged(); // Force UI update
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error reading file: {ex.Message}");
+            csvContent = null;
+            selectedFileName = null;
+            StateHasChanged();
+        }
     }
 
     private async Task HandleUpload()
