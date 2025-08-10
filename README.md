@@ -494,7 +494,11 @@ When reporting issues:
 winget install Microsoft.DotNet.SDK.9
 # or download from https://get.dot.net
 ```
+#### Platform-Specific Installation
 
+**Windows:**
+```bash
+winget install Microsoft.DotNet.SDK.9
 #### Aspire Workload Missing
 ```bash
 dotnet workload install aspire
