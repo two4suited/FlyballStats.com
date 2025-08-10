@@ -134,7 +134,8 @@ get_legacy_os_name_from_platform() {
     esac
     return 1
 }
-
+# FILE REMOVED: This standard .NET installation script should not be committed to source control.
+# Please download it on-demand from https://dot.net/v1/dotnet-install.sh as needed.
 get_legacy_os_name() {
     eval $invocation
 
