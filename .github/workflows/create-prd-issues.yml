@@ -1,0 +1,116 @@
+name: Create PRD Issues
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create issues from prd.md
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const core = require('@actions/core');
+            const path = 'prd.md';
+            if (!fs.existsSync(path)) {
+              core.setFailed('prd.md not found at repo root');
+              return;
+            }
+            const md = fs.readFileSync(path, 'utf8');
+
+            // Split into story blocks by headings like: ### 10.x Title
+            const lines = md.split(/\r?\n/);
+            const stories = [];
+            let i = 0;
+            while (i < lines.length) {
+              const m = lines[i].match(/^###\s+10\.(\d+)\s+(.*)$/);
+              if (!m) { i++; continue; }
+              const idx = m[1];
+              const titleText = m[2].trim();
+              const start = i;
+              i++;
+              let end = lines.length;
+              for (let j = i; j < lines.length; j++) {
+                if (/^###\s+10\./.test(lines[j])) { end = j; break; }
+              }
+              const block = lines.slice(start, end).join('\n');
+              // Extract ID
+              const idMatch = block.match(/-\s*ID:\s*(GH-\d+)/i);
+              const id = idMatch ? idMatch[1].toUpperCase() : `GH-${idx.padStart ? idx.padStart(3,'0') : idx}`;
+              // Description
+              const descMatch = block.match(/-\s*Description:\s*([\s\S]*?)(?:\n-\s*Acceptance criteria:|$)/i);
+              const description = descMatch ? descMatch[1].trim() : '';
+              // Acceptance criteria bullets following "- Acceptance criteria:" with lines starting by two-space dash
+              const acMatch = block.match(/-\s*Acceptance criteria:\s*\n([\s\S]*)/i);
+              let acBullets = [];
+              if (acMatch) {
+                const acSection = acMatch[1];
+                for (const line of acSection.split('\n')) {
+                  const b = line.match(/^\s{2}-\s+(.*)$/);
+                  if (b) acBullets.push(b[1]);
+                }
+              }
+              stories.push({ id, idx, titleText, description, acBullets });
+              i = end;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Ensure labels
+            const ensureLabel = async (name, color, description) => {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({ owner, repo, name, color, description });
+                } else { throw e; }
+              }
+            };
+
+            await ensureLabel('prd', '0E8A16', 'Product Requirements Document');
+            await ensureLabel('user-story', '5319E7', 'User story from PRD');
+
+            const created = [];
+            for (const s of stories) {
+              const issueTitle = `[${s.id}] ${s.titleText}`;
+              // Avoid duplicates by searching for the ID in title
+              const q = `repo:${owner}/${repo} in:title "${s.id}" type:issue`;
+              const searchRes = await github.rest.search.issuesAndPullRequests({ q });
+              if (searchRes.data.total_count > 0) {
+                core.info(`Skipping existing issue for ${s.id}`);
+                continue;
+              }
+              const bodyLines = [];
+              bodyLines.push(`ID: ${s.id}`);
+              if (s.description) {
+                bodyLines.push('\nDescription:\n');
+                bodyLines.push(s.description);
+              }
+              if (s.acBullets.length) {
+                bodyLines.push('\nAcceptance criteria:\n');
+                for (const b of s.acBullets) bodyLines.push(`- ${b}`);
+              }
+              bodyLines.push(`\nSource: prd.md`);
+              const res = await github.rest.issues.create({
+                owner,
+                repo,
+                title: issueTitle,
+                body: bodyLines.join('\n'),
+                labels: ['prd', 'user-story']
+              });
+              created.push(res.data.html_url);
+            }
+            core.summary.addHeading('PRD Issues');
+            for (const url of created) core.summary.addLink(url, url);
+            await core.summary.write();
+            core.info(`Created ${created.length} issue(s).`);
