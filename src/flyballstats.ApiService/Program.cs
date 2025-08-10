@@ -39,13 +39,13 @@ if (app.Environment.IsDevelopment())
 }
 
 // Tournament and CSV upload endpoints
-app.MapPost("/tournaments/upload-csv", async (CsvUploadRequest request, CsvValidationService validationService, TournamentDataService dataService) =>
+app.MapPost("/tournaments/upload-csv", (CsvUploadRequest request, CsvValidationService validationService, TournamentDataService dataService) =>
 {
     try
     {
         // Validate the CSV content
         var validationResult = validationService.ValidateCsv(request.CsvContent);
-        
+
         if (!validationResult.IsValid)
         {
             return Results.BadRequest(new CsvUploadResponse(false, "CSV validation failed", validationResult.Errors, null));
@@ -53,7 +53,7 @@ app.MapPost("/tournaments/upload-csv", async (CsvUploadRequest request, CsvValid
 
         // Store the tournament with races
         var tournament = dataService.CreateOrUpdateTournament(request.TournamentId, request.TournamentName, validationResult.ValidRaces);
-        
+
         return Results.Ok(new CsvUploadResponse(true, $"Successfully imported {validationResult.ValidRaces.Count} races", null, validationResult.ValidRaces.Count));
     }
     catch (Exception ex)

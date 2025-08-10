@@ -1,4 +1,5 @@
 @page "/ring-configuration"
+@using MudBlazor
 @using Microsoft.AspNetCore.Components.Forms
 @inject TournamentApiClient TournamentApi
 @inject ISnackbar Snackbar
@@ -56,7 +57,7 @@
                     {
                         <MudCard Class="mb-3" Elevation="1">
                             <MudCardContent Class="pa-4">
-                                <MudGrid Align="Align.Center">
+                                <MudGrid>
                                     <MudItem xs="12" sm="3">
                                         <MudSelect T="int" 
                                                    @bind-Value="ring.RingNumber" 
