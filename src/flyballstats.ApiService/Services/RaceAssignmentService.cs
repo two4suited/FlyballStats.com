@@ -97,6 +97,10 @@ public class RaceAssignmentService
             await _notificationService.NotifyRaceAssignmentUpdated(tournamentId, updatedAssignments);
 
             operationStopwatch.Stop();
+            
+            // Record performance metrics
+            await _notificationService.RecordLatencyMetric("RaceAssignmentUpdate", operationStopwatch.ElapsedMilliseconds);
+            
             _logger.LogInformation("Race assignment completed in {ElapsedMs}ms for tournament {TournamentId}", operationStopwatch.ElapsedMilliseconds, tournamentId);
 
             return new AssignRaceResponse(true, "Race assigned successfully", null, updatedAssignments);
@@ -156,6 +160,10 @@ public class RaceAssignmentService
             await _notificationService.NotifyRingCleared(tournamentId, ringNumber, updatedAssignments);
 
             operationStopwatch.Stop();
+            
+            // Record performance metrics
+            await _notificationService.RecordLatencyMetric("RingClear", operationStopwatch.ElapsedMilliseconds);
+            
             _logger.LogInformation("Ring clear completed in {ElapsedMs}ms for ring {RingNumber} in tournament {TournamentId}", 
                 operationStopwatch.ElapsedMilliseconds, ringNumber, tournamentId);
 
