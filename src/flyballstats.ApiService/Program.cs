@@ -1,5 +1,6 @@
 using flyballstats.ApiService.Models;
 using flyballstats.ApiService.Services;
+using flyballstats.ApiService.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,10 @@ builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<CsvValidationService>();
 builder.Services.AddSingleton<TournamentDataService>();
 builder.Services.AddSingleton<RaceAssignmentService>();
+
+// Add real-time services
+builder.Services.AddSingleton<IRealTimeNotificationService, SignalRNotificationService>();
+builder.Services.AddSignalR();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -121,11 +126,11 @@ app.MapGet("/tournaments/{tournamentId}/rings", (string tournamentId, Tournament
 .WithName("GetRingConfiguration");
 
 // Race Assignment endpoints
-app.MapPost("/tournaments/{tournamentId}/races/assign", (string tournamentId, AssignRaceRequest request, RaceAssignmentService assignmentService) =>
+app.MapPost("/tournaments/{tournamentId}/races/assign", async (string tournamentId, AssignRaceRequest request, RaceAssignmentService assignmentService) =>
 {
     try
     {
-        var result = assignmentService.AssignRace(request.TournamentId, request.RaceNumber, request.RingNumber, request.Status, request.AllowConflictOverride);
+        var result = await assignmentService.AssignRaceAsync(request.TournamentId, request.RaceNumber, request.RingNumber, request.Status, request.AllowConflictOverride);
         return result.Success ? Results.Ok(result) : Results.BadRequest(result);
     }
     catch (Exception ex)
@@ -142,11 +147,11 @@ app.MapGet("/tournaments/{tournamentId}/assignments", (string tournamentId, Race
 })
 .WithName("GetTournamentAssignments");
 
-app.MapPost("/tournaments/{tournamentId}/rings/{ringNumber}/clear", (string tournamentId, int ringNumber, RaceAssignmentService assignmentService) =>
+app.MapPost("/tournaments/{tournamentId}/rings/{ringNumber}/clear", async (string tournamentId, int ringNumber, RaceAssignmentService assignmentService) =>
 {
     try
     {
-        var result = assignmentService.ClearRing(tournamentId, ringNumber);
+        var result = await assignmentService.ClearRingAsync(tournamentId, ringNumber);
         return result.Success ? Results.Ok(result) : Results.BadRequest(result);
     }
     catch (Exception ex)
@@ -155,6 +160,9 @@ app.MapPost("/tournaments/{tournamentId}/rings/{ringNumber}/clear", (string tour
     }
 })
 .WithName("ClearRing");
+
+// Map SignalR hub
+app.MapHub<RaceAssignmentHub>("/racehub");
 
 app.MapDefaultEndpoints();
 
