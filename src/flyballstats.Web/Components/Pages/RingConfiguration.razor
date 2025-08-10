@@ -1,0 +1,346 @@
+@page "/ring-configuration"
+@using Microsoft.AspNetCore.Components.Forms
+@inject TournamentApiClient TournamentApi
+@inject ISnackbar Snackbar
+
+<PageTitle>Ring Configuration</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Ring Configuration</MudText>
+<MudText Typo="Typo.body1" Class="mb-4">
+    Configure the rings for your tournament. Select between 1-10 rings and assign unique colors from the palette.
+</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-6" Elevation="2">
+            <EditForm Model="@configModel" OnValidSubmit="@HandleSaveConfiguration">
+                <DataAnnotationsValidator />
+                
+                <MudTextField @bind-Value="configModel.TournamentId"
+                              For="@(() => configModel.TournamentId)"
+                              Label="Tournament ID"
+                              Placeholder="e.g., summer-2024"
+                              Variant="Variant.Outlined"
+                              Class="mb-4" />
+
+                <MudText Typo="Typo.h6" Class="mb-3">Rings Configuration</MudText>
+                
+                <MudStack Row="true" Spacing="2" Class="mb-4">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="@AddRing"
+                               Disabled="@(rings.Count >= 10)">
+                        Add Ring
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined"
+                               Color="Color.Warning"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="@LoadConfiguration"
+                               Disabled="@(isLoading || string.IsNullOrEmpty(configModel.TournamentId))">
+                        Load Existing
+                    </MudButton>
+                </MudStack>
+
+                @if (rings.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info" Class="mb-4">
+                        Click "Add Ring" to start configuring rings for your tournament. You can add up to 10 rings.
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="mb-2">Rings (@rings.Count/10):</MudText>
+                    
+                    @foreach (var ring in rings.OrderBy(r => r.RingNumber))
+                    {
+                        <MudCard Class="mb-3" Elevation="1">
+                            <MudCardContent Class="pa-4">
+                                <MudGrid Align="Align.Center">
+                                    <MudItem xs="12" sm="3">
+                                        <MudSelect T="int" 
+                                                   @bind-Value="ring.RingNumber" 
+                                                   Label="Ring Number"
+                                                   Variant="Variant.Outlined"
+                                                   Dense="true">
+                                            @for (int i = 1; i <= 10; i++)
+                                            {
+                                                <MudSelectItem T="int" Value="i">Ring @i</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="4">
+                                        <MudSelect T="string" 
+                                                   @bind-Value="ring.Color" 
+                                                   Label="Ring Color"
+                                                   Variant="Variant.Outlined"
+                                                   Dense="true">
+                                            @foreach (var color in AvailableColors)
+                                            {
+                                                <MudSelectItem T="string" Value="color.Value">
+                                                    <div style="display: flex; align-items: center;">
+                                                        <div style="width: 20px; height: 20px; background-color: @color.Value; border-radius: 3px; margin-right: 8px; border: 1px solid #ccc;"></div>
+                                                        @color.Name
+                                                    </div>
+                                                </MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="3">
+                                        <div style="display: flex; align-items: center; height: 40px;">
+                                            @if (!string.IsNullOrEmpty(ring.Color))
+                                            {
+                                                <div style="width: 40px; height: 40px; background-color: @ring.Color; border-radius: 6px; border: 2px solid #ddd; margin-right: 8px;"></div>
+                                                <MudText Typo="Typo.body2">Preview</MudText>
+                                            }
+                                        </div>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="2">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Color="Color.Error"
+                                                       OnClick="@(() => RemoveRing(ring))"
+                                                       Disabled="@(false)" />
+                                    </MudItem>
+                                </MudGrid>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                }
+
+                @if (validationErrors.Count > 0)
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-4">
+                        <MudText Typo="Typo.h6">Validation Errors:</MudText>
+                        <ul class="mb-0">
+                            @foreach (var error in validationErrors)
+                            {
+                                <li>@error</li>
+                            }
+                        </ul>
+                    </MudAlert>
+                }
+
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           ButtonType="ButtonType.Submit"
+                           Disabled="@(isSaving || rings.Count == 0 || string.IsNullOrEmpty(configModel.TournamentId))"
+                           StartIcon="@Icons.Material.Filled.Save"
+                           Class="mt-3">
+                    @if (isSaving)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Saving...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Save Configuration</MudText>
+                    }
+                </MudButton>
+            </EditForm>
+        </MudPaper>
+    </MudItem>
+    
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-6" Elevation="1">
+            <MudText Typo="Typo.h6" GutterBottom="true">Configuration Rules</MudText>
+            <MudList T="string">
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" Text="Minimum 1 ring required" />
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" Text="Maximum 10 rings allowed" />
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" Text="Ring numbers must be unique" />
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" Text="Ring colors must be unique" />
+            </MudList>
+            <MudAlert Severity="Severity.Info" Class="mt-3">
+                Configuration can be edited until racing starts.
+            </MudAlert>
+        </MudPaper>
+
+        @if (rings.Count > 0)
+        {
+            <MudPaper Class="pa-6 mt-4" Elevation="1">
+                <MudText Typo="Typo.h6" GutterBottom="true">Current Configuration</MudText>
+                <MudStack Spacing="2">
+                    @foreach (var ring in rings.OrderBy(r => r.RingNumber))
+                    {
+                        <MudChip T="string" Style="@($"background-color: {ring.Color}; color: white; font-weight: bold;")">
+                            Ring @ring.RingNumber
+                        </MudChip>
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+    </MudItem>
+</MudGrid>
+
+@code {
+    private ConfigurationModel configModel = new();
+    private List<RingConfigurationItem> rings = new();
+    private List<string> validationErrors = new();
+    private bool isSaving = false;
+    private bool isLoading = false;
+
+    private readonly List<ColorOption> AvailableColors = new()
+    {
+        new("Red", "#ff4444"),
+        new("Blue", "#4444ff"),
+        new("Green", "#44ff44"),
+        new("Yellow", "#ffff44"),
+        new("Orange", "#ff8844"),
+        new("Purple", "#8844ff"),
+        new("Pink", "#ff44ff"),
+        new("Cyan", "#44ffff"),
+        new("Lime", "#88ff44"),
+        new("Magenta", "#ff4488"),
+        new("Navy", "#000080"),
+        new("Teal", "#008080"),
+        new("Maroon", "#800000"),
+        new("Olive", "#808000"),
+        new("Silver", "#c0c0c0")
+    };
+
+    protected override void OnInitialized()
+    {
+        // Start with one ring by default
+        AddRing();
+    }
+
+    private void AddRing()
+    {
+        if (rings.Count >= 10) return;
+
+        var nextRingNumber = Enumerable.Range(1, 10).FirstOrDefault(n => !rings.Any(r => r.RingNumber == n));
+        if (nextRingNumber == 0) nextRingNumber = rings.Count + 1;
+
+        var nextColor = AvailableColors.FirstOrDefault(c => !rings.Any(r => r.Color == c.Value))?.Value ?? "";
+
+        rings.Add(new RingConfigurationItem
+        {
+            RingNumber = nextRingNumber,
+            Color = nextColor
+        });
+
+        ValidateConfiguration();
+        StateHasChanged();
+    }
+
+    private void RemoveRing(RingConfigurationItem ring)
+    {
+        rings.Remove(ring);
+        ValidateConfiguration();
+        StateHasChanged();
+    }
+
+    private async Task LoadConfiguration()
+    {
+        if (string.IsNullOrEmpty(configModel.TournamentId) || isLoading) return;
+
+        isLoading = true;
+        try
+        {
+            var configuration = await TournamentApi.GetRingConfigurationAsync(configModel.TournamentId);
+            if (configuration != null)
+            {
+                rings.Clear();
+                rings.AddRange(configuration.Rings.Select(r => new RingConfigurationItem
+                {
+                    RingNumber = r.RingNumber,
+                    Color = r.Color
+                }));
+                
+                Snackbar.Add("Configuration loaded successfully", Severity.Success);
+                ValidateConfiguration();
+                StateHasChanged();
+            }
+            else
+            {
+                Snackbar.Add("No existing configuration found for this tournament", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading configuration: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleSaveConfiguration()
+    {
+        if (!ValidateConfiguration()) return;
+
+        isSaving = true;
+        try
+        {
+            var ringConfigurations = rings.Select(r => new flyballstats.Web.RingConfiguration(r.RingNumber, r.Color)).ToList();
+            var result = await TournamentApi.SaveRingConfigurationAsync(configModel.TournamentId!, ringConfigurations);
+            
+            if (result.Success)
+            {
+                Snackbar.Add("Ring configuration saved successfully!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Failed to save configuration: {result.Message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private bool ValidateConfiguration()
+    {
+        validationErrors.Clear();
+
+        if (rings.Count == 0)
+        {
+            validationErrors.Add("At least one ring is required");
+        }
+        else if (rings.Count > 10)
+        {
+            validationErrors.Add("Maximum 10 rings allowed");
+        }
+
+        // Check for duplicate ring numbers
+        var ringNumbers = rings.Select(r => r.RingNumber).ToList();
+        if (ringNumbers.Distinct().Count() != ringNumbers.Count)
+        {
+            validationErrors.Add("Ring numbers must be unique");
+        }
+
+        // Check for duplicate colors
+        var colors = rings.Where(r => !string.IsNullOrEmpty(r.Color)).Select(r => r.Color).ToList();
+        if (colors.Distinct().Count() != colors.Count)
+        {
+            validationErrors.Add("Ring colors must be unique");
+        }
+
+        // Check for missing colors
+        if (rings.Any(r => string.IsNullOrEmpty(r.Color)))
+        {
+            validationErrors.Add("All rings must have a color assigned");
+        }
+
+        return validationErrors.Count == 0;
+    }
+
+    public class ConfigurationModel
+    {
+        [Required]
+        public string? TournamentId { get; set; }
+    }
+
+    public class RingConfigurationItem
+    {
+        public int RingNumber { get; set; }
+        public string Color { get; set; } = "";
+    }
+
+    public record ColorOption(string Name, string Value);
+}
