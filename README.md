@@ -2,7 +2,7 @@
 
 A modern, real-time flyball racing schedule and ring management system built with .NET Aspire and designed for Tournament Directors, Race Directors, and tournament participants.
 
-[![.NET Build & Test](https://github.com/two4suited/FlyballStats.com/actions/workflows/build-and-test.yml/badge.svg)](https://github.com/two4suited/FlyballStats.com/actions/workflows/build-and-test.yml)
+[![.NET Build & Test](https://github.com/two4suited/FlyballStats.com/actions/workflows/ci.yml/badge.svg)](https://github.com/two4suited/FlyballStats.com/actions/workflows/ci.yml)
 
 ## Table of Contents
 
