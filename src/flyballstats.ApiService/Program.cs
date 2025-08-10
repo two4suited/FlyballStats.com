@@ -16,8 +16,8 @@ builder.Services.AddProblemDetails();
 
 // Add custom services
 builder.Services.AddSingleton<CsvValidationService>();
-builder.Services.AddSingleton<TournamentDataService>();
-builder.Services.AddSingleton<RaceAssignmentService>();
+builder.Services.AddScoped<TournamentDataService>();
+builder.Services.AddScoped<RaceAssignmentService>();
 
 // Add real-time services
 builder.Services.AddSingleton<IRealTimeNotificationService, SignalRNotificationService>();
