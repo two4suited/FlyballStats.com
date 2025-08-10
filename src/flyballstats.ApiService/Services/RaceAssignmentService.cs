@@ -1,27 +1,35 @@
 using flyballstats.ApiService.Models;
-using System.Collections.Concurrent;
+using flyballstats.ApiService.Data;
+using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 
 namespace flyballstats.ApiService.Services;
 
 public class RaceAssignmentService
 {
-    private readonly ConcurrentDictionary<string, TournamentRaceAssignments> _assignments = new();
+    private readonly FlyballStatsDbContext _context;
     private readonly TournamentDataService _tournamentDataService;
     private readonly IRealTimeNotificationService _notificationService;
     private readonly ILogger<RaceAssignmentService> _logger;
 
-    public RaceAssignmentService(TournamentDataService tournamentDataService, IRealTimeNotificationService notificationService, ILogger<RaceAssignmentService> logger)
+    public RaceAssignmentService(FlyballStatsDbContext context, TournamentDataService tournamentDataService, IRealTimeNotificationService notificationService, ILogger<RaceAssignmentService> logger)
     {
+        _context = context;
         _tournamentDataService = tournamentDataService;
         _notificationService = notificationService;
         _logger = logger;
     }
 
+    public async Task<TournamentRaceAssignments?> GetTournamentAssignmentsAsync(string tournamentId)
+    {
+        var entity = await _context.RaceAssignments.FirstOrDefaultAsync(ra => ra.TournamentId == tournamentId);
+        return entity != null ? new TournamentRaceAssignments(entity.TournamentId, entity.Rings, entity.LastUpdated) : null;
+    }
+
     public TournamentRaceAssignments? GetTournamentAssignments(string tournamentId)
     {
-        _assignments.TryGetValue(tournamentId, out var assignments);
-        return assignments;
+        var entity = _context.RaceAssignments.FirstOrDefault(ra => ra.TournamentId == tournamentId);
+        return entity != null ? new TournamentRaceAssignments(entity.TournamentId, entity.Rings, entity.LastUpdated) : null;
     }
 
     public async Task<AssignRaceResponse> AssignRaceAsync(string tournamentId, int raceNumber, int ringNumber, RingStatus status, bool allowConflictOverride = false)
@@ -30,7 +38,7 @@ public class RaceAssignmentService
         try
         {
             // Validate tournament exists
-            var tournament = _tournamentDataService.GetTournament(tournamentId);
+            var tournament = await _tournamentDataService.GetTournamentAsync(tournamentId);
             if (tournament == null)
             {
                 return new AssignRaceResponse(false, "Tournament not found", null, null);
@@ -44,14 +52,14 @@ public class RaceAssignmentService
             }
 
             // Validate ring configuration exists
-            var ringConfig = _tournamentDataService.GetRingConfiguration(tournamentId);
+            var ringConfig = await _tournamentDataService.GetRingConfigurationAsync(tournamentId);
             if (ringConfig == null || !ringConfig.Rings.Any(r => r.RingNumber == ringNumber))
             {
                 return new AssignRaceResponse(false, $"Ring {ringNumber} not configured for this tournament", null, null);
             }
 
             // Get or create tournament assignments
-            var assignments = GetOrCreateTournamentAssignments(tournamentId, ringConfig);
+            var assignments = await GetOrCreateTournamentAssignmentsAsync(tournamentId, ringConfig);
 
             // Check for conflicts
             var conflicts = CheckForConflicts(assignments, raceNumber, ringNumber, status);
@@ -81,7 +89,9 @@ public class RaceAssignmentService
 
             // Update timestamp
             var updatedAssignments = assignments with { LastUpdated = DateTime.UtcNow };
-            _assignments.AddOrUpdate(tournamentId, updatedAssignments, (key, oldValue) => updatedAssignments);
+            
+            // Save to database
+            await SaveTournamentAssignmentsAsync(updatedAssignments);
 
             // Send real-time notification
             await _notificationService.NotifyRaceAssignmentUpdated(tournamentId, updatedAssignments);
@@ -112,14 +122,15 @@ public class RaceAssignmentService
         try
         {
             // Validate tournament exists
-            var tournament = _tournamentDataService.GetTournament(tournamentId);
+            var tournament = await _tournamentDataService.GetTournamentAsync(tournamentId);
             if (tournament == null)
             {
                 return new ClearRingResponse(false, "Tournament not found", null);
             }
 
             // Get assignments
-            if (!_assignments.TryGetValue(tournamentId, out var assignments))
+            var assignments = await GetTournamentAssignmentsAsync(tournamentId);
+            if (assignments == null)
             {
                 return new ClearRingResponse(false, "No assignments found for tournament", null);
             }
@@ -137,7 +148,9 @@ public class RaceAssignmentService
 
             // Update timestamp
             var updatedAssignments = assignments with { LastUpdated = DateTime.UtcNow };
-            _assignments.AddOrUpdate(tournamentId, updatedAssignments, (key, oldValue) => updatedAssignments);
+            
+            // Save to database
+            await SaveTournamentAssignmentsAsync(updatedAssignments);
 
             // Send real-time notification
             await _notificationService.NotifyRingCleared(tournamentId, ringNumber, updatedAssignments);
@@ -163,20 +176,53 @@ public class RaceAssignmentService
         return ClearRingAsync(tournamentId, ringNumber).GetAwaiter().GetResult();
     }
 
-    private TournamentRaceAssignments GetOrCreateTournamentAssignments(string tournamentId, TournamentRingConfiguration ringConfig)
+    private async Task<TournamentRaceAssignments> GetOrCreateTournamentAssignmentsAsync(string tournamentId, TournamentRingConfiguration ringConfig)
     {
-        return _assignments.GetOrAdd(tournamentId, _ =>
+        var entity = await _context.RaceAssignments.FirstOrDefaultAsync(ra => ra.TournamentId == tournamentId);
+        
+        if (entity != null)
         {
-            var rings = ringConfig.Rings.Select(r => new RingRaceAssignments(
-                r.RingNumber,
-                r.Color,
-                null, // Current
-                null, // OnDeck
-                null  // InTheHole
-            )).ToList();
+            return new TournamentRaceAssignments(entity.TournamentId, entity.Rings, entity.LastUpdated);
+        }
 
-            return new TournamentRaceAssignments(tournamentId, rings, DateTime.UtcNow);
-        });
+        // Create new assignments
+        var rings = ringConfig.Rings.Select(r => new RingRaceAssignments(
+            r.RingNumber,
+            r.Color,
+            null, // Current
+            null, // OnDeck
+            null  // InTheHole
+        )).ToList();
+
+        var newAssignments = new TournamentRaceAssignments(tournamentId, rings, DateTime.UtcNow);
+        await SaveTournamentAssignmentsAsync(newAssignments);
+        
+        return newAssignments;
+    }
+
+    private async Task SaveTournamentAssignmentsAsync(TournamentRaceAssignments assignments)
+    {
+        var existingEntity = await _context.RaceAssignments.FirstOrDefaultAsync(ra => ra.TournamentId == assignments.TournamentId);
+        
+        if (existingEntity != null)
+        {
+            existingEntity.Rings = assignments.Rings;
+            existingEntity.LastUpdated = assignments.LastUpdated;
+            _context.RaceAssignments.Update(existingEntity);
+        }
+        else
+        {
+            var newEntity = new TournamentRaceAssignmentsEntity
+            {
+                Id = assignments.TournamentId,
+                TournamentId = assignments.TournamentId,
+                Rings = assignments.Rings,
+                LastUpdated = assignments.LastUpdated
+            };
+            _context.RaceAssignments.Add(newEntity);
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     private List<string> CheckForConflicts(TournamentRaceAssignments assignments, int raceNumber, int ringNumber, RingStatus status)

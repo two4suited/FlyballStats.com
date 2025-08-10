@@ -1,11 +1,15 @@
 using flyballstats.ApiService.Models;
 using flyballstats.ApiService.Services;
 using flyballstats.ApiService.Hubs;
+using flyballstats.ApiService.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
+
+// Add Cosmos DB via Aspire
+builder.AddCosmosDbContext<FlyballStatsDbContext>("flyballstats");
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
