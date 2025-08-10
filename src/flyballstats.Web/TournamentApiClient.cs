@@ -73,4 +73,46 @@ public class TournamentApiClient(HttpClient httpClient)
             return false;
         }
     }
+
+    // Race Assignment methods
+    public async Task<AssignRaceResponse> AssignRaceAsync(string tournamentId, int raceNumber, int ringNumber, RingStatus status, bool allowConflictOverride = false, CancellationToken cancellationToken = default)
+    {
+        var request = new AssignRaceRequest(tournamentId, raceNumber, ringNumber, status, allowConflictOverride);
+        var json = JsonSerializer.Serialize(request);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        
+        var response = await httpClient.PostAsync($"/tournaments/{tournamentId}/races/assign", content, cancellationToken);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<AssignRaceResponse>(cancellationToken);
+            return result ?? new AssignRaceResponse(false, "Failed to parse response", null, null);
+        }
+        else
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new AssignRaceResponse(false, $"HTTP {response.StatusCode}: {errorContent}", null, null);
+        }
+    }
+
+    public async Task<TournamentRaceAssignments?> GetTournamentAssignmentsAsync(string tournamentId, CancellationToken cancellationToken = default)
+    {
+        return await httpClient.GetFromJsonAsync<TournamentRaceAssignments>($"/tournaments/{tournamentId}/assignments", cancellationToken);
+    }
+
+    public async Task<ClearRingResponse> ClearRingAsync(string tournamentId, int ringNumber, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.PostAsync($"/tournaments/{tournamentId}/rings/{ringNumber}/clear", null, cancellationToken);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<ClearRingResponse>(cancellationToken);
+            return result ?? new ClearRingResponse(false, "Failed to parse response", null);
+        }
+        else
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new ClearRingResponse(false, $"HTTP {response.StatusCode}: {errorContent}", null);
+        }
+    }
 }

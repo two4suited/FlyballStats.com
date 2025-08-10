@@ -1,0 +1,509 @@
+@page "/race-director"
+@using Microsoft.AspNetCore.Components.Forms
+@inject TournamentApiClient TournamentApi
+@inject ISnackbar Snackbar
+@implements IDisposable
+
+<PageTitle>Race Director Dashboard</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">Race Director Dashboard</MudText>
+<MudText Typo="Typo.body1" Class="mb-4">
+    Assign races to rings and manage current, on deck, and in the hole statuses.
+</MudText>
+
+<MudGrid>
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-6" Elevation="2">
+            <MudText Typo="Typo.h6" Class="mb-3">Tournament Selection</MudText>
+            
+            <MudTextField @bind-Value="selectedTournamentId"
+                          Label="Tournament ID"
+                          Placeholder="e.g., summer-2024"
+                          Variant="Variant.Outlined"
+                          Class="mb-4"
+                          OnKeyPress="@(async (KeyboardEventArgs e) => { if (e.Key == "Enter") await LoadTournamentData(); })" />
+            
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="LoadTournamentData"
+                       Disabled="@(isLoading || string.IsNullOrEmpty(selectedTournamentId))"
+                       StartIcon="@Icons.Material.Filled.Search"
+                       Class="mb-4">
+                Load Tournament
+            </MudButton>
+
+            @if (tournament != null)
+            {
+                <MudAlert Severity="Severity.Success" Class="mb-4">
+                    <strong>@tournament.Name</strong><br />
+                    @tournament.Races.Count races loaded
+                </MudAlert>
+            }
+
+            @if (errorMessage != null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-4">
+                    @errorMessage
+                </MudAlert>
+            }
+        </MudPaper>
+
+        @if (tournament != null && assignments != null)
+        {
+            <MudPaper Class="pa-6 mt-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-3">Quick Actions</MudText>
+                
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Warning"
+                           OnClick="RefreshAssignments"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           Class="mb-2 mr-2">
+                    Refresh
+                </MudButton>
+                
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Error"
+                           OnClick="ShowClearAllDialog"
+                           StartIcon="@Icons.Material.Filled.Clear">
+                    Clear All
+                </MudButton>
+            </MudPaper>
+        }
+    </MudItem>
+
+    @if (tournament != null && assignments != null)
+    {
+        <MudItem xs="12" md="8">
+            <MudPaper Class="pa-6" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-4">Ring Assignments</MudText>
+                
+                @foreach (var ring in assignments.Rings.OrderBy(r => r.RingNumber))
+                {
+                    <MudExpansionPanels Class="mb-3">
+                        <MudExpansionPanel IsInitiallyExpanded="true">
+                            <TitleContent>
+                                <div style="display: flex; align-items: center; width: 100%;">
+                                    <div style="width: 20px; height: 20px; background-color: @ring.Color; border-radius: 3px; margin-right: 12px; border: 1px solid #ccc;"></div>
+                                    <MudText Typo="Typo.h6">Ring @ring.RingNumber</MudText>
+                                    <MudSpacer />
+                                    <MudButton Variant="Variant.Text"
+                                               Color="Color.Error"
+                                               Size="Size.Small"
+                                               OnClick="@(() => ClearRing(ring.RingNumber))"
+                                               StartIcon="@Icons.Material.Filled.Clear">
+                                        Clear Ring
+                                    </MudButton>
+                                </div>
+                            </TitleContent>
+                            <ChildContent>
+                                <MudGrid>
+                                    @foreach (var status in new[] { RingStatus.Current, RingStatus.OnDeck, RingStatus.InTheHole })
+                                    {
+                                        <MudItem xs="12" md="4">
+                                            <MudCard Class="@GetStatusCardClass(status)" Elevation="1">
+                                                <MudCardHeader>
+                                                    <CardHeaderContent>
+                                                        <MudText Typo="Typo.h6">@status</MudText>
+                                                    </CardHeaderContent>
+                                                </MudCardHeader>
+                                                <MudCardContent>
+                                                    @{
+                                                        var assignment = GetAssignmentForStatus(ring, status);
+                                                    }
+                                                    @if (assignment != null)
+                                                    {
+                                                        var race = tournament.Races.FirstOrDefault(r => r.RaceNumber == assignment.RaceNumber);
+                                                        if (race != null)
+                                                        {
+                                                            <MudText Typo="Typo.h6">Race @race.RaceNumber</MudText>
+                                                            <MudText Typo="Typo.body2">@race.LeftTeam vs @race.RightTeam</MudText>
+                                                            <MudText Typo="Typo.caption">@race.Division</MudText>
+                                                            <MudButton Variant="Variant.Text"
+                                                                       Color="Color.Error"
+                                                                       Size="Size.Small"
+                                                                       OnClick="@(() => RemoveAssignment(ring.RingNumber, status))"
+                                                                       StartIcon="@Icons.Material.Filled.Remove"
+                                                                       Class="mt-2">
+                                                                Remove
+                                                            </MudButton>
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Typo="Typo.body2" Class="mb-3">No race assigned</MudText>
+                                                        <MudButton Variant="Variant.Outlined"
+                                                                   Color="Color.Primary"
+                                                                   Size="Size.Small"
+                                                                   OnClick="@(() => ShowAssignRaceDialog(ring.RingNumber, status))"
+                                                                   StartIcon="@Icons.Material.Filled.Add">
+                                                            Assign Race
+                                                        </MudButton>
+                                                    }
+                                                </MudCardContent>
+                                            </MudCard>
+                                        </MudItem>
+                                    }
+                                </MudGrid>
+                            </ChildContent>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                }
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+<!-- Race Assignment Dialog -->
+<MudDialog @bind-Visible="showAssignDialog" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="Icons.Material.Filled.Assignment" Class="mr-3" />
+            Assign Race to Ring @assignmentDialogRingNumber - @assignmentDialogStatus
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        @if (availableRaces.Any())
+        {
+            <MudText Typo="Typo.body1" Class="mb-3">Select a race to assign:</MudText>
+            <MudSelect T="int?"
+                       @bind-Value="selectedRaceNumber"
+                       Label="Race"
+                       Variant="Variant.Outlined"
+                       Class="mb-3">
+                <MudSelectItem T="int?" Value="null">-- Select Race --</MudSelectItem>
+                @foreach (var race in availableRaces.OrderBy(r => r.RaceNumber))
+                {
+                    <MudSelectItem T="int?" Value="race.RaceNumber">
+                        Race @race.RaceNumber - @race.LeftTeam vs @race.RightTeam (@race.Division)
+                    </MudSelectItem>
+                }
+            </MudSelect>
+            
+            @if (conflictMessages.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Class="mb-3">
+                    <MudText Typo="Typo.h6">Conflicts Detected:</MudText>
+                    @foreach (var conflict in conflictMessages)
+                    {
+                        <MudText Typo="Typo.body2">• @conflict</MudText>
+                    }
+                    <MudCheckBox T="bool" @bind-Checked="allowConflictOverride" 
+                                 Label="Override conflicts and assign anyway"
+                                 Class="mt-2" />
+                </MudAlert>
+            }
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info">
+                No unassigned races available.
+            </MudAlert>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CancelAssignDialog">Cancel</MudButton>
+        <MudButton Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   OnClick="ConfirmAssignRace"
+                   Disabled="@(selectedRaceNumber == null || (conflictMessages.Any() && !allowConflictOverride))">
+            Assign Race
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Clear All Confirmation Dialog -->
+<MudDialog @bind-Visible="showClearAllDialog" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="Icons.Material.Filled.Warning" Class="mr-3" />
+            Confirm Clear All Rings
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText>Are you sure you want to clear all race assignments from all rings? This action cannot be undone.</MudText>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => showClearAllDialog = false)">Cancel</MudButton>
+        <MudButton Color="Color.Error" 
+                   Variant="Variant.Filled" 
+                   OnClick="ConfirmClearAll">
+            Clear All
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private string selectedTournamentId = "";
+    private Tournament? tournament;
+    private TournamentRaceAssignments? assignments;
+    private bool isLoading = false;
+    private string? errorMessage;
+    private Timer? refreshTimer;
+    
+    // Dialog state
+    private bool showAssignDialog = false;
+    private bool showClearAllDialog = false;
+    private int assignmentDialogRingNumber;
+    private RingStatus assignmentDialogStatus;
+    private int? selectedRaceNumber;
+    private List<Race> availableRaces = new();
+    private List<string> conflictMessages = new();
+    private bool allowConflictOverride = false;
+
+    private readonly DialogOptions dialogOptions = new()
+    {
+        CloseOnEscapeKey = true,
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true
+    };
+
+    protected override void OnInitialized()
+    {
+        // Start a timer to refresh assignments every 2 seconds for real-time updates
+        refreshTimer = new Timer(async _ => await InvokeAsync(RefreshAssignments), null, TimeSpan.Zero, TimeSpan.FromSeconds(2));
+    }
+
+    private async Task LoadTournamentData()
+    {
+        if (string.IsNullOrEmpty(selectedTournamentId))
+            return;
+
+        isLoading = true;
+        errorMessage = null;
+        
+        try
+        {
+            tournament = await TournamentApi.GetTournamentAsync(selectedTournamentId);
+            if (tournament == null)
+            {
+                errorMessage = "Tournament not found. Make sure the tournament ID is correct and the tournament has been uploaded.";
+                assignments = null;
+                return;
+            }
+
+            // Load ring configuration to ensure rings are configured
+            var ringConfig = await TournamentApi.GetRingConfigurationAsync(selectedTournamentId);
+            if (ringConfig == null)
+            {
+                errorMessage = "Ring configuration not found. Please configure rings first.";
+                assignments = null;
+                return;
+            }
+
+            // Load current assignments
+            await RefreshAssignments();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading tournament: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshAssignments()
+    {
+        if (tournament == null) return;
+
+        try
+        {
+            assignments = await TournamentApi.GetTournamentAssignmentsAsync(selectedTournamentId);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            // Silent fail for background refresh
+            Console.WriteLine($"Error refreshing assignments: {ex.Message}");
+        }
+    }
+
+    private async Task ShowAssignRaceDialog(int ringNumber, RingStatus status)
+    {
+        assignmentDialogRingNumber = ringNumber;
+        assignmentDialogStatus = status;
+        selectedRaceNumber = null;
+        allowConflictOverride = false;
+        conflictMessages.Clear();
+
+        // Get available races (not currently assigned)
+        if (tournament != null && assignments != null)
+        {
+            var assignedRaceNumbers = assignments.Rings
+                .SelectMany(r => new[] { r.Current, r.OnDeck, r.InTheHole })
+                .Where(a => a != null)
+                .Select(a => a!.RaceNumber)
+                .ToHashSet();
+
+            availableRaces = tournament.Races
+                .Where(r => !assignedRaceNumbers.Contains(r.RaceNumber))
+                .ToList();
+        }
+
+        showAssignDialog = true;
+    }
+
+    private async Task ConfirmAssignRace()
+    {
+        if (selectedRaceNumber == null || tournament == null) return;
+
+        try
+        {
+            var result = await TournamentApi.AssignRaceAsync(
+                selectedTournamentId,
+                selectedRaceNumber.Value,
+                assignmentDialogRingNumber,
+                assignmentDialogStatus,
+                allowConflictOverride);
+
+            if (result.Success)
+            {
+                assignments = result.Assignments;
+                showAssignDialog = false;
+                Snackbar.Add($"Race {selectedRaceNumber} assigned successfully!", Severity.Success);
+            }
+            else
+            {
+                if (result.Conflicts != null && result.Conflicts.Any())
+                {
+                    conflictMessages = result.Conflicts;
+                    allowConflictOverride = false;
+                }
+                else
+                {
+                    Snackbar.Add($"Failed to assign race: {result.Message}", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error assigning race: {ex.Message}", Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    private void CancelAssignDialog()
+    {
+        showAssignDialog = false;
+        conflictMessages.Clear();
+        allowConflictOverride = false;
+    }
+
+    private async Task RemoveAssignment(int ringNumber, RingStatus status)
+    {
+        if (assignments == null) return;
+
+        var ring = assignments.Rings.FirstOrDefault(r => r.RingNumber == ringNumber);
+        if (ring == null) return;
+
+        var assignment = GetAssignmentForStatus(ring, status);
+        if (assignment == null) return;
+
+        try
+        {
+            // Clear the specific assignment by assigning null (handled by clearing the ring and reassigning others)
+            await ClearRing(ringNumber);
+            
+            // Reassign the other assignments for this ring
+            if (status != RingStatus.Current && ring.Current != null)
+            {
+                await TournamentApi.AssignRaceAsync(selectedTournamentId, ring.Current.RaceNumber, ringNumber, RingStatus.Current);
+            }
+            if (status != RingStatus.OnDeck && ring.OnDeck != null)
+            {
+                await TournamentApi.AssignRaceAsync(selectedTournamentId, ring.OnDeck.RaceNumber, ringNumber, RingStatus.OnDeck);
+            }
+            if (status != RingStatus.InTheHole && ring.InTheHole != null)
+            {
+                await TournamentApi.AssignRaceAsync(selectedTournamentId, ring.InTheHole.RaceNumber, ringNumber, RingStatus.InTheHole);
+            }
+
+            await RefreshAssignments();
+            Snackbar.Add($"Race assignment removed successfully!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error removing assignment: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ClearRing(int ringNumber)
+    {
+        try
+        {
+            var result = await TournamentApi.ClearRingAsync(selectedTournamentId, ringNumber);
+            
+            if (result.Success)
+            {
+                assignments = result.Assignments;
+                Snackbar.Add($"Ring {ringNumber} cleared successfully!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add($"Failed to clear ring: {result.Message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error clearing ring: {ex.Message}", Severity.Error);
+        }
+
+        StateHasChanged();
+    }
+
+    private void ShowClearAllDialog()
+    {
+        showClearAllDialog = true;
+    }
+
+    private async Task ConfirmClearAll()
+    {
+        if (assignments == null) return;
+
+        try
+        {
+            foreach (var ring in assignments.Rings)
+            {
+                await TournamentApi.ClearRingAsync(selectedTournamentId, ring.RingNumber);
+            }
+
+            await RefreshAssignments();
+            showClearAllDialog = false;
+            Snackbar.Add("All rings cleared successfully!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error clearing rings: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private RaceAssignment? GetAssignmentForStatus(RingRaceAssignments ring, RingStatus status)
+    {
+        return status switch
+        {
+            RingStatus.Current => ring.Current,
+            RingStatus.OnDeck => ring.OnDeck,
+            RingStatus.InTheHole => ring.InTheHole,
+            _ => null
+        };
+    }
+
+    private string GetStatusCardClass(RingStatus status)
+    {
+        return status switch
+        {
+            RingStatus.Current => "mud-theme-primary",
+            RingStatus.OnDeck => "mud-theme-secondary",
+            RingStatus.InTheHole => "mud-theme-tertiary",
+            _ => ""
+        };
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Dispose();
+    }
+}

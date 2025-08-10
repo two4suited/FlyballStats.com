@@ -12,6 +12,7 @@ builder.Services.AddProblemDetails();
 // Add custom services
 builder.Services.AddSingleton<CsvValidationService>();
 builder.Services.AddSingleton<TournamentDataService>();
+builder.Services.AddSingleton<RaceAssignmentService>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -118,6 +119,42 @@ app.MapGet("/tournaments/{tournamentId}/rings", (string tournamentId, Tournament
     return configuration != null ? Results.Ok(configuration) : Results.NotFound();
 })
 .WithName("GetRingConfiguration");
+
+// Race Assignment endpoints
+app.MapPost("/tournaments/{tournamentId}/races/assign", (string tournamentId, AssignRaceRequest request, RaceAssignmentService assignmentService) =>
+{
+    try
+    {
+        var result = assignmentService.AssignRace(request.TournamentId, request.RaceNumber, request.RingNumber, request.Status, request.AllowConflictOverride);
+        return result.Success ? Results.Ok(result) : Results.BadRequest(result);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"An error occurred: {ex.Message}");
+    }
+})
+.WithName("AssignRaceToRing");
+
+app.MapGet("/tournaments/{tournamentId}/assignments", (string tournamentId, RaceAssignmentService assignmentService) =>
+{
+    var assignments = assignmentService.GetTournamentAssignments(tournamentId);
+    return assignments != null ? Results.Ok(assignments) : Results.NotFound();
+})
+.WithName("GetTournamentAssignments");
+
+app.MapPost("/tournaments/{tournamentId}/rings/{ringNumber}/clear", (string tournamentId, int ringNumber, RaceAssignmentService assignmentService) =>
+{
+    try
+    {
+        var result = assignmentService.ClearRing(tournamentId, ringNumber);
+        return result.Success ? Results.Ok(result) : Results.BadRequest(result);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"An error occurred: {ex.Message}");
+    }
+})
+.WithName("ClearRing");
 
 app.MapDefaultEndpoints();
 

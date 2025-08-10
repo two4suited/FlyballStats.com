@@ -1,0 +1,200 @@
+using flyballstats.ApiService.Models;
+using System.Collections.Concurrent;
+
+namespace flyballstats.ApiService.Services;
+
+public class RaceAssignmentService
+{
+    private readonly ConcurrentDictionary<string, TournamentRaceAssignments> _assignments = new();
+    private readonly TournamentDataService _tournamentDataService;
+
+    public RaceAssignmentService(TournamentDataService tournamentDataService)
+    {
+        _tournamentDataService = tournamentDataService;
+    }
+
+    public TournamentRaceAssignments? GetTournamentAssignments(string tournamentId)
+    {
+        _assignments.TryGetValue(tournamentId, out var assignments);
+        return assignments;
+    }
+
+    public AssignRaceResponse AssignRace(string tournamentId, int raceNumber, int ringNumber, RingStatus status, bool allowConflictOverride = false)
+    {
+        try
+        {
+            // Validate tournament exists
+            var tournament = _tournamentDataService.GetTournament(tournamentId);
+            if (tournament == null)
+            {
+                return new AssignRaceResponse(false, "Tournament not found", null, null);
+            }
+
+            // Validate race exists
+            var race = tournament.Races.FirstOrDefault(r => r.RaceNumber == raceNumber);
+            if (race == null)
+            {
+                return new AssignRaceResponse(false, $"Race {raceNumber} not found in tournament", null, null);
+            }
+
+            // Validate ring configuration exists
+            var ringConfig = _tournamentDataService.GetRingConfiguration(tournamentId);
+            if (ringConfig == null || !ringConfig.Rings.Any(r => r.RingNumber == ringNumber))
+            {
+                return new AssignRaceResponse(false, $"Ring {ringNumber} not configured for this tournament", null, null);
+            }
+
+            // Get or create tournament assignments
+            var assignments = GetOrCreateTournamentAssignments(tournamentId, ringConfig);
+
+            // Check for conflicts
+            var conflicts = CheckForConflicts(assignments, raceNumber, ringNumber, status);
+            if (conflicts.Any() && !allowConflictOverride)
+            {
+                return new AssignRaceResponse(false, "Race assignment conflicts detected", conflicts, assignments);
+            }
+
+            // Remove any existing assignments for this race
+            RemoveRaceFromAllRings(assignments, raceNumber);
+
+            // Assign the race to the specified ring and status
+            var targetRing = assignments.Rings.First(r => r.RingNumber == ringNumber);
+            var newAssignment = new RaceAssignment(raceNumber, ringNumber, status);
+
+            var updatedRing = status switch
+            {
+                RingStatus.Current => targetRing with { Current = newAssignment },
+                RingStatus.OnDeck => targetRing with { OnDeck = newAssignment },
+                RingStatus.InTheHole => targetRing with { InTheHole = newAssignment },
+                _ => targetRing
+            };
+
+            // Update the ring in the assignments
+            var ringIndex = assignments.Rings.FindIndex(r => r.RingNumber == ringNumber);
+            assignments.Rings[ringIndex] = updatedRing;
+
+            // Update timestamp
+            var updatedAssignments = assignments with { LastUpdated = DateTime.UtcNow };
+            _assignments.AddOrUpdate(tournamentId, updatedAssignments, (key, oldValue) => updatedAssignments);
+
+            return new AssignRaceResponse(true, "Race assigned successfully", null, updatedAssignments);
+        }
+        catch (Exception ex)
+        {
+            return new AssignRaceResponse(false, $"An error occurred: {ex.Message}", null, null);
+        }
+    }
+
+    public ClearRingResponse ClearRing(string tournamentId, int ringNumber)
+    {
+        try
+        {
+            // Validate tournament exists
+            var tournament = _tournamentDataService.GetTournament(tournamentId);
+            if (tournament == null)
+            {
+                return new ClearRingResponse(false, "Tournament not found", null);
+            }
+
+            // Get assignments
+            if (!_assignments.TryGetValue(tournamentId, out var assignments))
+            {
+                return new ClearRingResponse(false, "No assignments found for tournament", null);
+            }
+
+            // Find and clear the ring
+            var ringIndex = assignments.Rings.FindIndex(r => r.RingNumber == ringNumber);
+            if (ringIndex == -1)
+            {
+                return new ClearRingResponse(false, $"Ring {ringNumber} not found", null);
+            }
+
+            var ring = assignments.Rings[ringIndex];
+            var clearedRing = ring with { Current = null, OnDeck = null, InTheHole = null };
+            assignments.Rings[ringIndex] = clearedRing;
+
+            // Update timestamp
+            var updatedAssignments = assignments with { LastUpdated = DateTime.UtcNow };
+            _assignments.AddOrUpdate(tournamentId, updatedAssignments, (key, oldValue) => updatedAssignments);
+
+            return new ClearRingResponse(true, "Ring cleared successfully", updatedAssignments);
+        }
+        catch (Exception ex)
+        {
+            return new ClearRingResponse(false, $"An error occurred: {ex.Message}", null);
+        }
+    }
+
+    private TournamentRaceAssignments GetOrCreateTournamentAssignments(string tournamentId, TournamentRingConfiguration ringConfig)
+    {
+        return _assignments.GetOrAdd(tournamentId, _ =>
+        {
+            var rings = ringConfig.Rings.Select(r => new RingRaceAssignments(
+                r.RingNumber,
+                r.Color,
+                null, // Current
+                null, // OnDeck
+                null  // InTheHole
+            )).ToList();
+
+            return new TournamentRaceAssignments(tournamentId, rings, DateTime.UtcNow);
+        });
+    }
+
+    private List<string> CheckForConflicts(TournamentRaceAssignments assignments, int raceNumber, int ringNumber, RingStatus status)
+    {
+        var conflicts = new List<string>();
+
+        // Check if race is already assigned as Current in another ring
+        if (status == RingStatus.Current)
+        {
+            var existingCurrentRings = assignments.Rings
+                .Where(r => r.RingNumber != ringNumber && r.Current?.RaceNumber == raceNumber)
+                .ToList();
+
+            if (existingCurrentRings.Any())
+            {
+                var ringNumbers = string.Join(", ", existingCurrentRings.Select(r => r.RingNumber));
+                conflicts.Add($"Race {raceNumber} is already current in ring(s): {ringNumbers}");
+            }
+        }
+
+        // Check if the target ring status slot is already occupied
+        var targetRing = assignments.Rings.FirstOrDefault(r => r.RingNumber == ringNumber);
+        if (targetRing != null)
+        {
+            var existingAssignment = status switch
+            {
+                RingStatus.Current => targetRing.Current,
+                RingStatus.OnDeck => targetRing.OnDeck,
+                RingStatus.InTheHole => targetRing.InTheHole,
+                _ => null
+            };
+
+            if (existingAssignment != null)
+            {
+                conflicts.Add($"Ring {ringNumber} {status} slot is already occupied by race {existingAssignment.RaceNumber}");
+            }
+        }
+
+        return conflicts;
+    }
+
+    private void RemoveRaceFromAllRings(TournamentRaceAssignments assignments, int raceNumber)
+    {
+        for (int i = 0; i < assignments.Rings.Count; i++)
+        {
+            var ring = assignments.Rings[i];
+            var updatedRing = ring;
+
+            if (ring.Current?.RaceNumber == raceNumber)
+                updatedRing = updatedRing with { Current = null };
+            if (ring.OnDeck?.RaceNumber == raceNumber)
+                updatedRing = updatedRing with { OnDeck = null };
+            if (ring.InTheHole?.RaceNumber == raceNumber)
+                updatedRing = updatedRing with { InTheHole = null };
+
+            assignments.Rings[i] = updatedRing;
+        }
+    }
+}
