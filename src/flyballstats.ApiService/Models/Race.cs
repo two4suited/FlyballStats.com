@@ -109,16 +109,6 @@ public class TournamentEntity
     public List<Race> Races { get; set; } = new();
 }
 
-public class RaceEntity
-{
-    public string Id { get; set; } = string.Empty;
-    public string TournamentId { get; set; } = string.Empty;
-    public int RaceNumber { get; set; }
-    public string LeftTeam { get; set; } = string.Empty;
-    public string RightTeam { get; set; } = string.Empty;
-    public string Division { get; set; } = string.Empty;
-}
-
 public class TournamentRingConfigurationEntity
 {
     public string Id { get; set; } = string.Empty;
