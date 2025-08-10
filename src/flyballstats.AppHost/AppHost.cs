@@ -18,7 +18,9 @@ var raceAssignmentsContainer = database.AddContainer("RaceAssignments", "/tourna
 
 
 var apiService = builder.AddProject<Projects.flyballstats_ApiService>("apiservice")
-    .WithHttpHealthCheck("/health");
+    .WithHttpHealthCheck("/health")
+    .WithReference(database);
+    
 
 builder.AddProject<Projects.flyballstats_Web>("webfrontend")
     .WithExternalHttpEndpoints()

@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add Cosmos DB via Aspire
-builder.AddCosmosDbContext<FlyballStatsDbContext>("cosmosdb", "flyballstats");
+builder.AddCosmosDbContext<FlyballStatsDbContext>("cosmos-db", "flyballstats");
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
