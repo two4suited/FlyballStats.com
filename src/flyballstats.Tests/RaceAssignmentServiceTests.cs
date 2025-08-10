@@ -1,5 +1,7 @@
 using flyballstats.ApiService.Models;
 using flyballstats.ApiService.Services;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 
 namespace flyballstats.Tests;
@@ -8,11 +10,15 @@ public class RaceAssignmentServiceTests
 {
     private readonly TournamentDataService _tournamentDataService;
     private readonly RaceAssignmentService _raceAssignmentService;
+    private readonly Mock<IRealTimeNotificationService> _mockNotificationService;
+    private readonly Mock<ILogger<RaceAssignmentService>> _mockLogger;
 
     public RaceAssignmentServiceTests()
     {
         _tournamentDataService = new TournamentDataService();
-        _raceAssignmentService = new RaceAssignmentService(_tournamentDataService);
+        _mockNotificationService = new Mock<IRealTimeNotificationService>();
+        _mockLogger = new Mock<ILogger<RaceAssignmentService>>();
+        _raceAssignmentService = new RaceAssignmentService(_tournamentDataService, _mockNotificationService.Object, _mockLogger.Object);
     }
 
     [Fact]

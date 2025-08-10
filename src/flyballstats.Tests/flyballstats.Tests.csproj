@@ -12,6 +12,7 @@
     <PackageReference Include="Aspire.Hosting.Testing" Version="9.4.0" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.0" />
     <PackageReference Include="xunit.v3" Version="2.0.3" />
   </ItemGroup>
@@ -26,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\flyballstats.Web\flyballstats.Web.csproj" />
+    <ProjectReference Include="..\flyballstats.ApiService\flyballstats.ApiService.csproj" />
   </ItemGroup>
 
 </Project>
