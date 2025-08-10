@@ -2,6 +2,7 @@ using flyballstats.ApiService.Models;
 using flyballstats.ApiService.Services;
 using flyballstats.ApiService.Data;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 
@@ -9,7 +10,7 @@ namespace flyballstats.Tests;
 
 public class RaceAssignmentServiceTests
 {
-    private readonly Mock<FlyballStatsDbContext> _mockContext;
+    private readonly FlyballStatsDbContext _context;
     private readonly TournamentDataService _tournamentDataService;
     private readonly RaceAssignmentService _raceAssignmentService;
     private readonly Mock<IRealTimeNotificationService> _mockNotificationService;
@@ -17,11 +18,14 @@ public class RaceAssignmentServiceTests
 
     public RaceAssignmentServiceTests()
     {
-        _mockContext = new Mock<FlyballStatsDbContext>();
-        _tournamentDataService = new TournamentDataService(_mockContext.Object);
+        var options = new DbContextOptionsBuilder<FlyballStatsDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        _context = new FlyballStatsDbContext(options);
+        _tournamentDataService = new TournamentDataService(_context);
         _mockNotificationService = new Mock<IRealTimeNotificationService>();
         _mockLogger = new Mock<ILogger<RaceAssignmentService>>();
-        _raceAssignmentService = new RaceAssignmentService(_mockContext.Object, _tournamentDataService, _mockNotificationService.Object, _mockLogger.Object);
+        _raceAssignmentService = new RaceAssignmentService(_context, _tournamentDataService, _mockNotificationService.Object, _mockLogger.Object);
     }
 
     [Fact]
