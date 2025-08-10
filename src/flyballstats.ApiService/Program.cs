@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add Cosmos DB via Aspire
-// builder.AddCosmosDbContext<FlyballStatsDbContext>("cosmos-db", "flyballstats");
+ builder.AddCosmosDbContext<FlyballStatsDbContext>("cosmos-db", "flyballstats");
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -17,13 +17,13 @@ builder.Services.AddProblemDetails();
 // Add custom services
 builder.Services.AddSingleton<CsvValidationService>();
 builder.Services.AddSingleton<MockTournamentDataService>();
-// builder.Services.AddScoped<TournamentDataService>();
-// builder.Services.AddScoped<RaceAssignmentService>();
+ builder.Services.AddScoped<TournamentDataService>();
+builder.Services.AddScoped<RaceAssignmentService>();
 
 // Add real-time services
-// builder.Services.AddSingleton<IRealTimeNotificationService, SignalRNotificationService>();
-// builder.Services.AddSignalR()
-//     .AddNamedAzureSignalR("signalr");
+builder.Services.AddSingleton<IRealTimeNotificationService, SignalRNotificationService>();
+builder.Services.AddSignalR()
+     .AddNamedAzureSignalR("signalr");
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddEndpointsApiExplorer();
@@ -87,14 +87,8 @@ app.MapGet("/tournaments/{tournamentId}/exists", (string tournamentId, MockTourn
 })
 .WithName("CheckTournamentExists");
 
-app.MapGet("/tournaments/{tournamentId}/assignments", (string tournamentId, MockTournamentDataService dataService) =>
-{
-    var assignments = dataService.GetTournamentAssignments(tournamentId);
-    return assignments != null ? Results.Ok(assignments) : Results.NotFound();
-})
-.WithName("GetTournamentAssignments");
 
-/*
+
 // Ring configuration endpoints
 app.MapPost("/tournaments/{tournamentId}/rings", (string tournamentId, RingConfigurationRequest request, TournamentDataService dataService) =>
 {
@@ -178,10 +172,10 @@ app.MapPost("/tournaments/{tournamentId}/rings/{ringNumber}/clear", async (strin
     }
 })
 .WithName("ClearRing");
-*/
+
 
 // Map SignalR hub
-// app.MapHub<RaceAssignmentHub>("/racehub");
+ app.MapHub<RaceAssignmentHub>("/racehub");
 
 app.MapDefaultEndpoints();
 
