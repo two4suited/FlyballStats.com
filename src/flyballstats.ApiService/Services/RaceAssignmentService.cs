@@ -1,5 +1,6 @@
 using flyballstats.ApiService.Models;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace flyballstats.ApiService.Services;
 
@@ -7,10 +8,14 @@ public class RaceAssignmentService
 {
     private readonly ConcurrentDictionary<string, TournamentRaceAssignments> _assignments = new();
     private readonly TournamentDataService _tournamentDataService;
+    private readonly IRealTimeNotificationService _notificationService;
+    private readonly ILogger<RaceAssignmentService> _logger;
 
-    public RaceAssignmentService(TournamentDataService tournamentDataService)
+    public RaceAssignmentService(TournamentDataService tournamentDataService, IRealTimeNotificationService notificationService, ILogger<RaceAssignmentService> logger)
     {
         _tournamentDataService = tournamentDataService;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     public TournamentRaceAssignments? GetTournamentAssignments(string tournamentId)
@@ -19,8 +24,9 @@ public class RaceAssignmentService
         return assignments;
     }
 
-    public AssignRaceResponse AssignRace(string tournamentId, int raceNumber, int ringNumber, RingStatus status, bool allowConflictOverride = false)
+    public async Task<AssignRaceResponse> AssignRaceAsync(string tournamentId, int raceNumber, int ringNumber, RingStatus status, bool allowConflictOverride = false)
     {
+        var operationStopwatch = Stopwatch.StartNew();
         try
         {
             // Validate tournament exists
@@ -77,16 +83,32 @@ public class RaceAssignmentService
             var updatedAssignments = assignments with { LastUpdated = DateTime.UtcNow };
             _assignments.AddOrUpdate(tournamentId, updatedAssignments, (key, oldValue) => updatedAssignments);
 
+            // Send real-time notification
+            await _notificationService.NotifyRaceAssignmentUpdated(tournamentId, updatedAssignments);
+
+            operationStopwatch.Stop();
+            _logger.LogInformation("Race assignment completed in {ElapsedMs}ms for tournament {TournamentId}", operationStopwatch.ElapsedMilliseconds, tournamentId);
+
             return new AssignRaceResponse(true, "Race assigned successfully", null, updatedAssignments);
         }
         catch (Exception ex)
         {
+            operationStopwatch.Stop();
+            _logger.LogError(ex, "Error assigning race {RaceNumber} to ring {RingNumber} in tournament {TournamentId} after {ElapsedMs}ms", 
+                raceNumber, ringNumber, tournamentId, operationStopwatch.ElapsedMilliseconds);
             return new AssignRaceResponse(false, $"An error occurred: {ex.Message}", null, null);
         }
     }
 
-    public ClearRingResponse ClearRing(string tournamentId, int ringNumber)
+    // Keep synchronous version for backwards compatibility
+    public AssignRaceResponse AssignRace(string tournamentId, int raceNumber, int ringNumber, RingStatus status, bool allowConflictOverride = false)
     {
+        return AssignRaceAsync(tournamentId, raceNumber, ringNumber, status, allowConflictOverride).GetAwaiter().GetResult();
+    }
+
+    public async Task<ClearRingResponse> ClearRingAsync(string tournamentId, int ringNumber)
+    {
+        var operationStopwatch = Stopwatch.StartNew();
         try
         {
             // Validate tournament exists
@@ -117,12 +139,28 @@ public class RaceAssignmentService
             var updatedAssignments = assignments with { LastUpdated = DateTime.UtcNow };
             _assignments.AddOrUpdate(tournamentId, updatedAssignments, (key, oldValue) => updatedAssignments);
 
+            // Send real-time notification
+            await _notificationService.NotifyRingCleared(tournamentId, ringNumber, updatedAssignments);
+
+            operationStopwatch.Stop();
+            _logger.LogInformation("Ring clear completed in {ElapsedMs}ms for ring {RingNumber} in tournament {TournamentId}", 
+                operationStopwatch.ElapsedMilliseconds, ringNumber, tournamentId);
+
             return new ClearRingResponse(true, "Ring cleared successfully", updatedAssignments);
         }
         catch (Exception ex)
         {
+            operationStopwatch.Stop();
+            _logger.LogError(ex, "Error clearing ring {RingNumber} in tournament {TournamentId} after {ElapsedMs}ms", 
+                ringNumber, tournamentId, operationStopwatch.ElapsedMilliseconds);
             return new ClearRingResponse(false, $"An error occurred: {ex.Message}", null);
         }
+    }
+
+    // Keep synchronous version for backwards compatibility
+    public ClearRingResponse ClearRing(string tournamentId, int ringNumber)
+    {
+        return ClearRingAsync(tournamentId, ringNumber).GetAwaiter().GetResult();
     }
 
     private TournamentRaceAssignments GetOrCreateTournamentAssignments(string tournamentId, TournamentRingConfiguration ringConfig)

@@ -19,6 +19,7 @@ builder.Services.AddOutputCache();
 
 // Add custom services
 builder.Services.AddSingleton<ErrorReportService>();
+builder.Services.AddSingleton<RealTimeService>();
 
 
 

@@ -1,8 +1,10 @@
 @page "/race-director"
 @using Microsoft.AspNetCore.Components.Forms
+@using flyballstats.Web.Services
 @inject TournamentApiClient TournamentApi
 @inject ISnackbar Snackbar
-@implements IDisposable
+@inject RealTimeService RealTimeService
+@implements IAsyncDisposable
 
 <PageTitle>Race Director Dashboard</PageTitle>
 
@@ -52,6 +54,15 @@
         {
             <MudPaper Class="pa-6 mt-4" Elevation="2">
                 <MudText Typo="Typo.h6" Class="mb-3">Quick Actions</MudText>
+                
+                <!-- Real-time connection status -->
+                <MudChip T="string" Icon="@(isRealTimeConnected ? Icons.Material.Filled.Wifi : Icons.Material.Filled.WifiOff)"
+                         Color="@(isRealTimeConnected ? Color.Success : Color.Error)"
+                         Size="Size.Small"
+                         Class="mb-3">
+                    @(isRealTimeConnected ? "Real-time Connected" : "Real-time Disconnected")
+                </MudChip>
+                <br />
                 
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Warning"
@@ -238,7 +249,7 @@
     private TournamentRaceAssignments? assignments;
     private bool isLoading = false;
     private string? errorMessage;
-    private Timer? refreshTimer;
+    private bool isRealTimeConnected = false;
     
     // Dialog state
     private bool showAssignDialog = false;
@@ -257,10 +268,16 @@
         FullWidth = true
     };
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // Start a timer to refresh assignments every 2 seconds for real-time updates
-        refreshTimer = new Timer(async _ => await InvokeAsync(RefreshAssignments), null, TimeSpan.Zero, TimeSpan.FromSeconds(2));
+        // Set up real-time event handlers
+        RealTimeService.RaceAssignmentUpdated += OnRaceAssignmentUpdated;
+        RealTimeService.RingCleared += OnRingCleared;
+        RealTimeService.ConnectionStateChanged += OnConnectionStateChanged;
+
+        // Connect to real-time service
+        var baseUrl = "http://localhost:5002"; // API service URL - in production this would come from configuration
+        await RealTimeService.ConnectAsync(baseUrl);
     }
 
     private async Task LoadTournamentData()
@@ -292,6 +309,12 @@
 
             // Load current assignments
             await RefreshAssignments();
+
+            // Join the real-time group for this tournament
+            if (RealTimeService.IsConnected)
+            {
+                await RealTimeService.JoinTournamentAsync(selectedTournamentId);
+            }
         }
         catch (Exception ex)
         {
@@ -502,8 +525,51 @@
         };
     }
 
-    public void Dispose()
+    // Real-time event handlers
+    private async Task OnRaceAssignmentUpdated(TournamentRaceAssignments updatedAssignments)
     {
-        refreshTimer?.Dispose();
+        if (updatedAssignments.TournamentId == selectedTournamentId)
+        {
+            assignments = updatedAssignments;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task OnRingCleared(int ringNumber, TournamentRaceAssignments updatedAssignments)
+    {
+        if (updatedAssignments.TournamentId == selectedTournamentId)
+        {
+            assignments = updatedAssignments;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task OnConnectionStateChanged(bool isConnected)
+    {
+        isRealTimeConnected = isConnected;
+        await InvokeAsync(StateHasChanged);
+        
+        if (isConnected && !string.IsNullOrEmpty(selectedTournamentId))
+        {
+            // Rejoin tournament on reconnection
+            await RealTimeService.JoinTournamentAsync(selectedTournamentId);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Unsubscribe from events
+        RealTimeService.RaceAssignmentUpdated -= OnRaceAssignmentUpdated;
+        RealTimeService.RingCleared -= OnRingCleared;
+        RealTimeService.ConnectionStateChanged -= OnConnectionStateChanged;
+
+        // Leave tournament if we're in one
+        if (!string.IsNullOrEmpty(selectedTournamentId))
+        {
+            await RealTimeService.LeaveTournamentAsync(selectedTournamentId);
+        }
+
+        // Dispose of the real-time service
+        await RealTimeService.DisposeAsync();
     }
 }
