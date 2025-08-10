@@ -21,7 +21,8 @@ builder.Services.AddScoped<RaceAssignmentService>();
 
 // Add real-time services
 builder.Services.AddSingleton<IRealTimeNotificationService, SignalRNotificationService>();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddNamedAzureSignalR("signalr");
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddEndpointsApiExplorer();

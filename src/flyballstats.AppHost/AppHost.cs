@@ -17,15 +17,24 @@ var raceAssignmentsContainer = database.AddContainer("RaceAssignments", "/tourna
 #pragma warning restore ASPIRECOSMOSDB001
 
 
+
+// Add Azure SignalR resource (emulator)
+var signalr = builder.AddAzureSignalR("signalr").RunAsEmulator();
+
 var apiService = builder.AddProject<Projects.flyballstats_ApiService>("apiservice")
     .WithHttpHealthCheck("/health")
-    .WithReference(database);
-    
+    .WithReference(database)
+    .WithReference(signalr)
+    .WaitFor(database)
+    .WaitFor(signalr);
 
-builder.AddProject<Projects.flyballstats_Web>("webfrontend")
+var webfrontend = builder.AddProject<Projects.flyballstats_Web>("webfrontend")
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health")
     .WithReference(apiService)
-    .WaitFor(apiService);
+    .WithReference(signalr)
+    .WaitFor(apiService)
+    .WaitFor(database)
+    .WaitFor(signalr);
 
 builder.Build().Run();
