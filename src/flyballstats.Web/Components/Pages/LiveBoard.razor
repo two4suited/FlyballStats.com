@@ -1,0 +1,151 @@
+@page "/live-board"
+@inject TournamentApiClient TournamentApi
+@inject NavigationManager Navigation
+
+<PageTitle>Live Board - FlyballStats.com</PageTitle>
+
+<style>
+    .tournament-card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        cursor: pointer;
+        border-radius: 16px;
+    }
+    .tournament-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    .tournament-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-align: center;
+        padding: 3rem 2rem;
+        margin: -1rem -1rem 2rem -1rem;
+        border-radius: 16px 16px 0 0;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #666;
+    }
+    .race-count-badge {
+        background: linear-gradient(45deg, #667eea 30%, #764ba2 90%);
+        color: white;
+        border-radius: 12px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+</style>
+
+<div class="tournament-header">
+    <MudIcon Icon="Icons.Material.Filled.ViewKanban" Style="font-size: 3rem;" Class="mb-3" />
+    <MudText Typo="Typo.h3" Class="mb-2">Live Board</MudText>
+    <MudText Typo="Typo.body1" Style="opacity: 0.9;">
+        View all active tournaments and their race schedules
+    </MudText>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-center py-8">
+        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+    </div>
+}
+else if (tournaments.Length == 0)
+{
+    <div class="empty-state">
+        <MudIcon Icon="Icons.Material.Filled.EventBusy" Style="font-size: 4rem; opacity: 0.3;" Class="mb-4" />
+        <MudText Typo="Typo.h5" Class="mb-3">No Tournaments Available</MudText>
+        <MudText Typo="Typo.body1" Class="mb-6">
+            There are currently no tournaments in the system. Upload a tournament schedule to get started.
+        </MudText>
+        <MudButton Variant="Variant.Filled" 
+                   Color="Color.Primary" 
+                   Href="tournament-upload"
+                   StartIcon="@Icons.Material.Filled.Upload">
+            Upload Tournament
+        </MudButton>
+    </div>
+}
+else
+{
+    <MudGrid>
+        @foreach (var tournament in tournaments)
+        {
+            <MudItem xs="12" sm="6" lg="4">
+                <MudPaper Class="tournament-card pa-4" 
+                          Elevation="2" 
+                          @onclick="() => NavigateToSchedule(tournament.Id)">
+                    <div class="d-flex justify-space-between align-center mb-3">
+                        <MudIcon Icon="Icons.Material.Filled.Event" 
+                                 Color="Color.Primary" 
+                                 Style="font-size: 2rem;" />
+                        <div class="race-count-badge">
+                            @tournament.Races.Count race@(tournament.Races.Count != 1 ? "s" : "")
+                        </div>
+                    </div>
+                    
+                    <MudText Typo="Typo.h6" Class="mb-2" GutterBottom="true">
+                        @tournament.Name
+                    </MudText>
+                    
+                    <MudText Typo="Typo.body2" Class="mb-3" Color="Color.Dark">
+                        Tournament ID: @tournament.Id
+                    </MudText>
+                    
+                    @if (tournament.Races.Count > 0)
+                    {
+                        <MudText Typo="Typo.body2" Class="mb-4">
+                            <strong>Divisions:</strong> @string.Join(", ", tournament.Races.Select(r => r.Division).Distinct().OrderBy(d => d))
+                        </MudText>
+                        
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText Typo="Typo.caption" Color="Color.Dark">
+                                Races @tournament.Races.Min(r => r.RaceNumber) - @tournament.Races.Max(r => r.RaceNumber)
+                            </MudText>
+                            <MudButton Variant="Variant.Text" 
+                                       Color="Color.Primary" 
+                                       Size="Size.Small"
+                                       EndIcon="@Icons.Material.Filled.ArrowForward">
+                                View Schedule
+                            </MudButton>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Error">
+                            No races scheduled
+                        </MudText>
+                    }
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private Tournament[] tournaments = [];
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            tournaments = await TournamentApi.GetTournamentsAsync();
+        }
+        catch (Exception ex)
+        {
+            // TODO: Add proper error handling/logging
+            Console.WriteLine($"Error loading tournaments: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void NavigateToSchedule(string tournamentId)
+    {
+        Navigation.NavigateTo($"/tournament-schedule/{tournamentId}");
+    }
+}

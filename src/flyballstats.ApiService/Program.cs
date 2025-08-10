@@ -9,20 +9,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add Cosmos DB via Aspire
-builder.AddCosmosDbContext<FlyballStatsDbContext>("cosmos-db", "flyballstats");
+// builder.AddCosmosDbContext<FlyballStatsDbContext>("cosmos-db", "flyballstats");
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
 
 // Add custom services
 builder.Services.AddSingleton<CsvValidationService>();
-builder.Services.AddScoped<TournamentDataService>();
-builder.Services.AddScoped<RaceAssignmentService>();
+builder.Services.AddSingleton<MockTournamentDataService>();
+// builder.Services.AddScoped<TournamentDataService>();
+// builder.Services.AddScoped<RaceAssignmentService>();
 
 // Add real-time services
-builder.Services.AddSingleton<IRealTimeNotificationService, SignalRNotificationService>();
-builder.Services.AddSignalR()
-    .AddNamedAzureSignalR("signalr");
+// builder.Services.AddSingleton<IRealTimeNotificationService, SignalRNotificationService>();
+// builder.Services.AddSignalR()
+//     .AddNamedAzureSignalR("signalr");
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddEndpointsApiExplorer();
@@ -40,6 +41,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Tournament and CSV upload endpoints
+/*
 app.MapPost("/tournaments/upload-csv", (CsvUploadRequest request, CsvValidationService validationService, TournamentDataService dataService) =>
 {
     try
@@ -63,27 +65,36 @@ app.MapPost("/tournaments/upload-csv", (CsvUploadRequest request, CsvValidationS
     }
 })
 .WithName("UploadTournamentCsv");
+*/
 
-app.MapGet("/tournaments", (TournamentDataService dataService) =>
+app.MapGet("/tournaments", (MockTournamentDataService dataService) =>
 {
     return Results.Ok(dataService.GetAllTournaments());
 })
 .WithName("GetTournaments");
 
-app.MapGet("/tournaments/{tournamentId}", (string tournamentId, TournamentDataService dataService) =>
+app.MapGet("/tournaments/{tournamentId}", (string tournamentId, MockTournamentDataService dataService) =>
 {
     var tournament = dataService.GetTournament(tournamentId);
     return tournament != null ? Results.Ok(tournament) : Results.NotFound();
 })
 .WithName("GetTournament");
 
-app.MapGet("/tournaments/{tournamentId}/exists", (string tournamentId, TournamentDataService dataService) =>
+app.MapGet("/tournaments/{tournamentId}/exists", (string tournamentId, MockTournamentDataService dataService) =>
 {
     var exists = dataService.TournamentExists(tournamentId);
     return Results.Ok(new { Exists = exists });
 })
 .WithName("CheckTournamentExists");
 
+app.MapGet("/tournaments/{tournamentId}/assignments", (string tournamentId, MockTournamentDataService dataService) =>
+{
+    var assignments = dataService.GetTournamentAssignments(tournamentId);
+    return assignments != null ? Results.Ok(assignments) : Results.NotFound();
+})
+.WithName("GetTournamentAssignments");
+
+/*
 // Ring configuration endpoints
 app.MapPost("/tournaments/{tournamentId}/rings", (string tournamentId, RingConfigurationRequest request, TournamentDataService dataService) =>
 {
@@ -167,9 +178,10 @@ app.MapPost("/tournaments/{tournamentId}/rings/{ringNumber}/clear", async (strin
     }
 })
 .WithName("ClearRing");
+*/
 
 // Map SignalR hub
-app.MapHub<RaceAssignmentHub>("/racehub");
+// app.MapHub<RaceAssignmentHub>("/racehub");
 
 app.MapDefaultEndpoints();
 
