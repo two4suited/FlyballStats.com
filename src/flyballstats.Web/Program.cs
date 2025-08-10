@@ -1,5 +1,6 @@
 using flyballstats.Web;
 using flyballstats.Web.Components;
+using flyballstats.Web.Services;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,12 +17,15 @@ builder.Services.AddMudServices();
 
 builder.Services.AddOutputCache();
 
+// Add custom services
+builder.Services.AddSingleton<ErrorReportService>();
+
 
 
 builder.Services.AddHttpClient<TournamentApiClient>(client =>
     {
-        // For development testing, use localhost when ApiService is running standalone
-        client.BaseAddress = new("http://localhost:5000");
+        // Use service discovery for Aspire
+        client.BaseAddress = new("https+http://apiservice");
     });
 
 var app = builder.Build();

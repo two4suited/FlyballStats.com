@@ -60,4 +60,17 @@ public class TournamentApiClient(HttpClient httpClient)
     {
         return await httpClient.GetFromJsonAsync<TournamentRingConfiguration>($"/tournaments/{tournamentId}/rings", cancellationToken);
     }
+
+    public async Task<bool> TournamentExistsAsync(string tournamentId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await httpClient.GetFromJsonAsync<TournamentExistsResponse>($"/tournaments/{tournamentId}/exists", cancellationToken);
+            return response?.Exists ?? false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

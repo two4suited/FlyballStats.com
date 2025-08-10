@@ -44,3 +44,6 @@ public record RingConfigurationResponse(
     bool Success,
     string? Message,
     TournamentRingConfiguration? Configuration);
+
+public record TournamentExistsResponse(
+    bool Exists);
