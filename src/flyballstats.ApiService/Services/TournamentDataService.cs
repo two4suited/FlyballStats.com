@@ -6,6 +6,7 @@ namespace flyballstats.ApiService.Services;
 public class TournamentDataService
 {
     private readonly ConcurrentDictionary<string, Tournament> _tournaments = new();
+    private readonly ConcurrentDictionary<string, TournamentRingConfiguration> _ringConfigurations = new();
 
     public Tournament? GetTournament(string tournamentId)
     {
@@ -28,5 +29,18 @@ public class TournamentDataService
     public bool TournamentExists(string tournamentId)
     {
         return _tournaments.ContainsKey(tournamentId);
+    }
+
+    public TournamentRingConfiguration SaveRingConfiguration(string tournamentId, List<RingConfiguration> rings)
+    {
+        var configuration = new TournamentRingConfiguration(tournamentId, rings);
+        _ringConfigurations.AddOrUpdate(tournamentId, configuration, (key, oldValue) => configuration);
+        return configuration;
+    }
+
+    public TournamentRingConfiguration? GetRingConfiguration(string tournamentId)
+    {
+        _ringConfigurations.TryGetValue(tournamentId, out var configuration);
+        return configuration;
     }
 }

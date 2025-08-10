@@ -35,4 +35,29 @@ public class TournamentApiClient(HttpClient httpClient)
             return new CsvUploadResponse(false, $"HTTP {response.StatusCode}: {errorContent}", null, null);
         }
     }
+
+    public async Task<RingConfigurationResponse> SaveRingConfigurationAsync(string tournamentId, List<RingConfiguration> rings, CancellationToken cancellationToken = default)
+    {
+        var request = new RingConfigurationRequest(tournamentId, rings);
+        var json = JsonSerializer.Serialize(request);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        
+        var response = await httpClient.PostAsync($"/tournaments/{tournamentId}/rings", content, cancellationToken);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<RingConfigurationResponse>(cancellationToken);
+            return result ?? new RingConfigurationResponse(false, "Failed to parse response", null);
+        }
+        else
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new RingConfigurationResponse(false, $"HTTP {response.StatusCode}: {errorContent}", null);
+        }
+    }
+
+    public async Task<TournamentRingConfiguration?> GetRingConfigurationAsync(string tournamentId, CancellationToken cancellationToken = default)
+    {
+        return await httpClient.GetFromJsonAsync<TournamentRingConfiguration>($"/tournaments/{tournamentId}/rings", cancellationToken);
+    }
 }

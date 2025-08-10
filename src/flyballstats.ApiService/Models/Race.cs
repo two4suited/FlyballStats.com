@@ -32,3 +32,20 @@ public record CsvUploadResponse(
     string? Message,
     List<ValidationError>? Errors,
     int? RacesImported);
+
+public record RingConfiguration(
+    int RingNumber,
+    string Color);
+
+public record TournamentRingConfiguration(
+    string TournamentId,
+    List<RingConfiguration> Rings);
+
+public record RingConfigurationRequest(
+    string TournamentId,
+    List<RingConfiguration> Rings);
+
+public record RingConfigurationResponse(
+    bool Success,
+    string? Message,
+    TournamentRingConfiguration? Configuration);

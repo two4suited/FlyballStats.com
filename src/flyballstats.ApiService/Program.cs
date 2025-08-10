@@ -64,6 +64,54 @@ app.MapGet("/tournaments/{tournamentId}", (string tournamentId, TournamentDataSe
 })
 .WithName("GetTournament");
 
+// Ring configuration endpoints
+app.MapPost("/tournaments/{tournamentId}/rings", (string tournamentId, RingConfigurationRequest request, TournamentDataService dataService) =>
+{
+    try
+    {
+        // Validate ring configuration
+        if (request.Rings.Count == 0 || request.Rings.Count > 10)
+        {
+            return Results.BadRequest(new RingConfigurationResponse(false, "Tournament must have between 1 and 10 rings", null));
+        }
+
+        // Check for duplicate colors
+        var colors = request.Rings.Select(r => r.Color).ToList();
+        if (colors.Distinct().Count() != colors.Count)
+        {
+            return Results.BadRequest(new RingConfigurationResponse(false, "Ring colors must be unique", null));
+        }
+
+        // Check for valid ring numbers (1-10)
+        if (request.Rings.Any(r => r.RingNumber < 1 || r.RingNumber > 10))
+        {
+            return Results.BadRequest(new RingConfigurationResponse(false, "Ring numbers must be between 1 and 10", null));
+        }
+
+        // Check for duplicate ring numbers
+        var ringNumbers = request.Rings.Select(r => r.RingNumber).ToList();
+        if (ringNumbers.Distinct().Count() != ringNumbers.Count)
+        {
+            return Results.BadRequest(new RingConfigurationResponse(false, "Ring numbers must be unique", null));
+        }
+
+        var configuration = dataService.SaveRingConfiguration(tournamentId, request.Rings);
+        return Results.Ok(new RingConfigurationResponse(true, "Ring configuration saved successfully", configuration));
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"An error occurred: {ex.Message}");
+    }
+})
+.WithName("SetRingConfiguration");
+
+app.MapGet("/tournaments/{tournamentId}/rings", (string tournamentId, TournamentDataService dataService) =>
+{
+    var configuration = dataService.GetRingConfiguration(tournamentId);
+    return configuration != null ? Results.Ok(configuration) : Results.NotFound();
+})
+.WithName("GetRingConfiguration");
+
 app.MapDefaultEndpoints();
 
 app.Run();
