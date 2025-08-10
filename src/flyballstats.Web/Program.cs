@@ -24,8 +24,11 @@ builder.Services.AddSingleton<ErrorReportService>();
 
 builder.Services.AddHttpClient<TournamentApiClient>(client =>
     {
-        // Use service discovery for Aspire
-        client.BaseAddress = new("https+http://apiservice");
+        // Use direct localhost URL for development without Aspire
+        var baseAddress = builder.Environment.IsDevelopment() 
+            ? "http://localhost:5002" 
+            : "https+http://apiservice";
+        client.BaseAddress = new(baseAddress);
     });
 
 var app = builder.Build();
