@@ -10,11 +10,17 @@ echo "Installing .NET Aspire CLI..."
 dotnet workload update
 dotnet workload install aspire
 
+# Install Aspire CLI as a global tool
+echo "Installing Aspire CLI as global tool..."
+dotnet tool install -g Microsoft.Dotnet.Aspire.Cli --prerelease
+
 # Verify installations
 echo "Verifying installations..."
 dotnet --version
 echo "Aspire workload installed:"
 dotnet workload list | grep aspire || echo "Aspire workload not found, but should be available via SDK"
+echo "Aspire CLI tool:"
+aspire --version || echo "Aspire CLI tool not found, but workload should be sufficient"
 
 # Restore NuGet packages
 echo "Restoring NuGet packages..."
