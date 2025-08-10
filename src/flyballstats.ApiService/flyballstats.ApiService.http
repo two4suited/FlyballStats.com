@@ -1,6 +1,13 @@
 @ApiService_HostAddress = http://localhost:5438
 
-GET {{ApiService_HostAddress}}/weatherforecast/
-Accept: application/json
+### Tournament CSV Upload Test
+POST {{ApiService_HostAddress}}/tournaments/upload-csv
+Content-Type: application/json
+
+{
+  "tournamentId": "test-tournament-001",
+  "tournamentName": "Test Tournament",
+  "csvContent": "Race Number,Left Team,Right Team,Division\n1,Team Alpha,Team Beta,Open\n2,Team Gamma,Team Delta,Regular"
+}
 
 ###
