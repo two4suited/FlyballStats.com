@@ -1,19 +1,25 @@
-﻿@inherits LayoutComponentBase
+﻿
+@inherits LayoutComponentBase
 
-<MudLayout>
-    <MudAppBar Elevation="1">
-        <MudText Typo="Typo.h5" Class="ml-3">FlyballStats</MudText>
-        <MudSpacer />
-        <NavMenu />
-        <MudSpacer />
-        <MudIconButton Icon="Icons.Custom.Brands.MudBlazor" Color="Color.Inherit" Href="https://mudblazor.com/" Target="_blank" />
-    </MudAppBar>
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-16 pt-16">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+<header class="site-header">
+    <div class="header-flex">
+        <div class="header-left">
+            <img src="/flyball-logo.svg" alt="Flyball Stats Logo" class="site-logo" />
+            <span class="site-title">Flyball Stats</span>
+        </div>
+        <nav class="main-nav">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/tournament-upload" class="nav-link">Tournament Management</a>
+            <a href="/ring-configuration" class="nav-link">Ring Configuration</a>
+            <a href="/race-director" class="nav-link">Race Director</a>
+        </nav>
+    </div>
+</header>
+<div class="main-layout">
+    <div class="content px-4">
+        @Body
+    </div>
+</div>
 
 <div id="blazor-error-ui">
     An unhandled error has occurred.

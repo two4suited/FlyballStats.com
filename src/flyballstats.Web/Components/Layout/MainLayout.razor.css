@@ -1,3 +1,137 @@
+.site-header {
+    background: linear-gradient(90deg, #2D9CDB 0%, #56CCF2 100%);
+    padding: 0.75rem 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    margin-bottom: 0.5rem;
+}
+
+.header-flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+}
+
+.site-logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 1rem;
+}
+
+.site-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 2px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.main-nav {
+    display: flex;
+    flex-direction: row;
+    gap: 2rem;
+}
+
+.nav-link {
+    font-size: 1.1rem;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    position: relative;
+}
+.nav-link:hover, .nav-link.active {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+}
+
+.site-header {
+    background: linear-gradient(90deg, #2D9CDB 0%, #56CCF2 100%);
+    padding: 0.75rem 2rem 0 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    margin-bottom: 0.5rem;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.site-logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 1rem;
+}
+
+.site-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 2px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.main-nav {
+    display: flex;
+    flex-direction: row;
+    gap: 2rem;
+    width: 100%;
+    background: linear-gradient(90deg, #2D9CDB 0%, #56CCF2 100%);
+    padding: 0.5rem 0 0.5rem 0;
+    border-radius: 0 0 12px 12px;
+}
+
+.nav-link {
+    font-size: 1.1rem;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+    padding: 0.25rem 1rem;
+    border-radius: 4px;
+    position: relative;
+}
+.nav-link:hover, .nav-link.active {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+}
+.site-header {
+    background: linear-gradient(90deg, #2D9CDB 0%, #56CCF2 100%);
+    padding: 0.75rem 2rem;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    margin-bottom: 0.5rem;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+}
+
+.site-logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 1rem;
+}
+
+.site-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 2px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
 .page {
     position: relative;
     display: flex;
