@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Aspire AppHost",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/flyballstats.AppHost/bin/Debug/net9.0/flyballstats.AppHost.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/flyballstats.AppHost",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "preLaunchTask": "build"
+        },
+        {
+            "name": "Launch Web Frontend",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/flyballstats.Web/bin/Debug/net9.0/flyballstats.Web.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/flyballstats.Web",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "https://localhost:5001;http://localhost:5000"
+            },
+            "preLaunchTask": "build"
+        },
+        {
+            "name": "Launch API Service",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/flyballstats.ApiService/bin/Debug/net9.0/flyballstats.ApiService.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/flyballstats.ApiService",
+            "console": "internalConsole",
+            "stopAtEntry": false,
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "https://localhost:7001;http://localhost:7000"
+            },
+            "preLaunchTask": "build"
+        }
+    ]
+}

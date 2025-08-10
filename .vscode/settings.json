@@ -1,0 +1,16 @@
+{
+    "dotnet.defaultSolution": "src/flyballstats.sln",
+    "dotnet.preferCSharpExtension": true,
+    "omnisharp.useModernNet": true,
+    "files.exclude": {
+        "**/bin": true,
+        "**/obj": true
+    },
+    "files.watcherExclude": {
+        "**/bin/**": true,
+        "**/obj/**": true,
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/node_modules/*/**": true
+    }
+}
