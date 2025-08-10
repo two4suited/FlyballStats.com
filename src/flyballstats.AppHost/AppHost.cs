@@ -4,16 +4,11 @@ var builder = DistributedApplication.CreateBuilder(args);
 var cosmosDb = builder.AddAzureCosmosDB("cosmosdb")
     .RunAsEmulator();
 
-var flyballstatsDb = cosmosDb.AddCosmosDatabase("flyballstats");
+var apiService = builder.AddProject("apiservice", "../flyballstats.ApiService/flyballstats.ApiService.csproj")
+    .WithReference(cosmosDb);
 
-var apiService = builder.AddProject<Projects.flyballstats_ApiService>("apiservice")
-    .WithHttpHealthCheck("/health")
-    .WithReference(flyballstatsDb);
-
-builder.AddProject<Projects.flyballstats_Web>("webfrontend")
+builder.AddProject("webfrontend", "../flyballstats.Web/flyballstats.Web.csproj")
     .WithExternalHttpEndpoints()
-    .WithHttpHealthCheck("/health")
-    .WithReference(apiService)
-    .WaitFor(apiService);
+    .WithReference(apiService);
 
 builder.Build().Run();

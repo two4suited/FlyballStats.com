@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add Cosmos DB via Aspire
-builder.AddCosmosDbContext<FlyballStatsDbContext>("flyballstats");
+builder.AddCosmosDbContext<FlyballStatsDbContext>("cosmosdb", "flyballstats");
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -24,7 +24,8 @@ builder.Services.AddSingleton<IRealTimeNotificationService, SignalRNotificationS
 builder.Services.AddSignalR();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
@@ -33,7 +34,8 @@ app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 // Tournament and CSV upload endpoints
