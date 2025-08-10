@@ -10,4 +10,8 @@
     <ProjectReference Include="..\flyballstats.ServiceDefaults\flyballstats.ServiceDefaults.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" Version="8.11.0" />
+  </ItemGroup>
+
 </Project>

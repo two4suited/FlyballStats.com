@@ -1,108 +1,123 @@
 @page "/tournament-upload"
 @using Microsoft.AspNetCore.Components.Forms
 @inject TournamentApiClient TournamentApi
-@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
 
 <PageTitle>Upload Tournament CSV</PageTitle>
 
-<h1>Upload Tournament CSV</h1>
+<MudText Typo="Typo.h3" GutterBottom="true">Upload Tournament CSV</MudText>
+<MudText Typo="Typo.body1" Class="mb-4">
+    Upload a CSV file containing race schedules. The CSV must have the following headers: Race Number, Left Team, Right Team, Division.
+</MudText>
 
-<p>Upload a CSV file containing race schedules. The CSV must have the following headers: Race Number, Left Team, Right Team, Division.</p>
+<MudGrid>
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-6" Elevation="2">
+            <EditForm Model="@uploadModel" OnValidSubmit="@HandleUpload">
+                <DataAnnotationsValidator />
+                
+                <MudTextField @bind-Value="uploadModel.TournamentId"
+                              For="@(() => uploadModel.TournamentId)"
+                              Label="Tournament ID"
+                              Placeholder="e.g., summer-2024"
+                              Variant="Variant.Outlined"
+                              Class="mb-4" />
 
-<div class="row">
-    <div class="col-md-8">
-        <EditForm Model="@uploadModel" OnValidSubmit="@HandleUpload">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+                <MudTextField @bind-Value="uploadModel.TournamentName"
+                              For="@(() => uploadModel.TournamentName)"
+                              Label="Tournament Name"
+                              Placeholder="e.g., Summer Championship 2024"
+                              Variant="Variant.Outlined"
+                              Class="mb-4" />
 
-            <div class="mb-3">
-                <label for="tournamentId" class="form-label">Tournament ID</label>
-                <InputText id="tournamentId" class="form-control" @bind-Value="uploadModel.TournamentId" placeholder="e.g., summer-2024" />
-                <ValidationMessage For="@(() => uploadModel.TournamentId)" />
-            </div>
+                <MudText Class="mb-2">CSV File</MudText>
+                <MudStack Row="true" Class="mb-4">
+                    <MudFileUpload T="IBrowserFile" Accept=".csv" FilesChanged="HandleFileSelected">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.CloudUpload">
+                                Select CSV File
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    @if (!string.IsNullOrEmpty(selectedFileName))
+                    {
+                        <MudChip T="string" Icon="@Icons.Material.Filled.AttachFile" Color="Color.Success">@selectedFileName</MudChip>
+                    }
+                </MudStack>
 
-            <div class="mb-3">
-                <label for="tournamentName" class="form-label">Tournament Name</label>
-                <InputText id="tournamentName" class="form-control" @bind-Value="uploadModel.TournamentName" placeholder="e.g., Summer Championship 2024" />
-                <ValidationMessage For="@(() => uploadModel.TournamentName)" />
-            </div>
-
-            <div class="mb-3">
-                <label for="csvFile" class="form-label">CSV File</label>
-                <InputFile id="csvFile" class="form-control" OnChange="@HandleFileSelected" accept=".csv" />
-                @if (!string.IsNullOrEmpty(selectedFileName))
-                {
-                    <div class="form-text">Selected: @selectedFileName</div>
-                }
-            </div>
-
-            <div class="mb-3">
-                <button type="submit" class="btn btn-primary" disabled="@(isUploading || string.IsNullOrEmpty(csvContent))">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           ButtonType="ButtonType.Submit"
+                           Disabled="@(isUploading || string.IsNullOrEmpty(csvContent))"
+                           StartIcon="@Icons.Material.Filled.Upload"
+                           Class="mt-3">
                     @if (isUploading)
                     {
-                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        <text> Uploading...</text>
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Uploading...</MudText>
                     }
                     else
                     {
-                        <text>Upload CSV</text>
+                        <MudText>Upload CSV</MudText>
                     }
-                </button>
-            </div>
-        </EditForm>
-    </div>
-</div>
+                </MudButton>
+            </EditForm>
+        </MudPaper>
+    </MudItem>
+    
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-6" Elevation="1">
+            <MudText Typo="Typo.h6" GutterBottom="true">CSV Format Requirements</MudText>
+            <MudList T="string">
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" Text="Race Number" />
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" Text="Left Team" />
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" Text="Right Team" />
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircle" Text="Division" />
+            </MudList>
+            <MudAlert Severity="Severity.Info" Class="mt-3">
+                File size limit: 1MB
+            </MudAlert>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
 
 @if (uploadResult != null)
 {
-    <div class="row">
-        <div class="col-md-12">
-            @if (uploadResult.Success)
+    <MudPaper Class="pa-6 mt-6" Elevation="2">
+        @if (uploadResult.Success)
+        {
+            <MudAlert Severity="Severity.Success">
+                <MudText Typo="Typo.h6">Upload Successful!</MudText>
+                <MudText>@uploadResult.Message</MudText>
+                @if (uploadResult.RacesImported.HasValue)
+                {
+                    <MudText><strong>Races imported:</strong> @uploadResult.RacesImported</MudText>
+                }
+            </MudAlert>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Error">
+                <MudText Typo="Typo.h6">Upload Failed</MudText>
+                <MudText>@uploadResult.Message</MudText>
+            </MudAlert>
+            
+            @if (uploadResult.Errors != null && uploadResult.Errors.Count > 0)
             {
-                <div class="alert alert-success" role="alert">
-                    <h4 class="alert-heading">Upload Successful!</h4>
-                    <p>@uploadResult.Message</p>
-                    @if (uploadResult.RacesImported.HasValue)
-                    {
-                        <p><strong>Races imported:</strong> @uploadResult.RacesImported</p>
-                    }
-                </div>
+                <MudText Typo="Typo.h6" Class="mt-4 mb-2">Validation Errors:</MudText>
+                <MudDataGrid Items="@uploadResult.Errors" Dense="true" Hover="true">
+                    <Columns>
+                        <PropertyColumn Property="x => x.RowNumber" Title="Row" />
+                        <PropertyColumn Property="x => x.Field" Title="Field" />
+                        <PropertyColumn Property="x => x.Value" Title="Value" />
+                        <PropertyColumn Property="x => x.Reason" Title="Reason" />
+                    </Columns>
+                </MudDataGrid>
             }
-            else
-            {
-                <div class="alert alert-danger" role="alert">
-                    <h4 class="alert-heading">Upload Failed</h4>
-                    <p>@uploadResult.Message</p>
-                    
-                    @if (uploadResult.Errors != null && uploadResult.Errors.Count > 0)
-                    {
-                        <h5>Validation Errors:</h5>
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Row</th>
-                                    <th>Field</th>
-                                    <th>Value</th>
-                                    <th>Reason</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var error in uploadResult.Errors)
-                                {
-                                    <tr>
-                                        <td>@error.RowNumber</td>
-                                        <td>@error.Field</td>
-                                        <td>@error.Value</td>
-                                        <td>@error.Reason</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    }
-                </div>
-            }
-        </div>
-    </div>
+        }
+    </MudPaper>
 }
 
 @code {
@@ -112,14 +127,13 @@
     private bool isUploading = false;
     private CsvUploadResponse? uploadResult;
 
-    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    private async Task HandleFileSelected(IBrowserFile file)
     {
-        var file = e.File;
         selectedFileName = file.Name;
         
         if (file.Size > 1024 * 1024) // 1MB limit
         {
-            await JSRuntime.InvokeVoidAsync("alert", "File size must be less than 1MB");
+            Snackbar.Add("File size must be less than 1MB", Severity.Error);
             csvContent = null;
             StateHasChanged();
             return;
@@ -130,11 +144,12 @@
             using var stream = file.OpenReadStream();
             using var reader = new StreamReader(stream);
             csvContent = await reader.ReadToEndAsync();
-            StateHasChanged(); // Force UI update
+            Snackbar.Add("File loaded successfully", Severity.Success);
+            StateHasChanged();
         }
         catch (Exception ex)
         {
-            await JSRuntime.InvokeVoidAsync("alert", $"Error reading file: {ex.Message}");
+            Snackbar.Add($"Error reading file: {ex.Message}", Severity.Error);
             csvContent = null;
             selectedFileName = null;
             StateHasChanged();
@@ -145,7 +160,7 @@
     {
         if (string.IsNullOrEmpty(csvContent))
         {
-            await JSRuntime.InvokeVoidAsync("alert", "Please select a CSV file first");
+            Snackbar.Add("Please select a CSV file first", Severity.Warning);
             return;
         }
 
@@ -155,10 +170,19 @@
         try
         {
             uploadResult = await TournamentApi.UploadCsvAsync(uploadModel.TournamentId!, uploadModel.TournamentName!, csvContent);
+            if (uploadResult.Success)
+            {
+                Snackbar.Add("Tournament data uploaded successfully!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Upload failed. Please check the errors below.", Severity.Error);
+            }
         }
         catch (Exception ex)
         {
             uploadResult = new CsvUploadResponse(false, $"An error occurred: {ex.Message}", null, null);
+            Snackbar.Add($"An error occurred: {ex.Message}", Severity.Error);
         }
         finally
         {
