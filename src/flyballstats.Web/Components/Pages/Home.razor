@@ -2,6 +2,43 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudText Typo="Typo.h3" GutterBottom="true">Welcome to FlyballStats</MudText>
+<MudText Typo="Typo.body1">
+    Your professional flyball tournament management system.
+</MudText>
 
-Welcome to your new app.
+<MudGrid Class="mt-8">
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" GutterBottom="true">Live Tournament Board</MudText>
+            <MudText Typo="Typo.body2">
+                Monitor live race results and ring status in real-time.
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3">
+                View Live Board
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" GutterBottom="true">Tournament Management</MudText>
+            <MudText Typo="Typo.body2">
+                Upload race schedules and manage tournament data.
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Class="mt-3" Href="tournament-upload">
+                Upload CSV
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="4">
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudText Typo="Typo.h6" GutterBottom="true">Ring Configuration</MudText>
+            <MudText Typo="Typo.body2">
+                Set up ring colors and tournament display settings.
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Tertiary" Class="mt-3">
+                Configure Rings
+            </MudButton>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
