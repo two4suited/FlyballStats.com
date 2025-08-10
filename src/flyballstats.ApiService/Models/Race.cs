@@ -100,3 +100,26 @@ public record ClearRingResponse(
     bool Success,
     string? Message,
     TournamentRaceAssignments? Assignments);
+
+// Entity Framework entities for Cosmos DB
+public class TournamentEntity
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public List<Race> Races { get; set; } = new();
+}
+
+public class TournamentRingConfigurationEntity
+{
+    public string Id { get; set; } = string.Empty;
+    public string TournamentId { get; set; } = string.Empty;
+    public List<RingConfiguration> Rings { get; set; } = new();
+}
+
+public class TournamentRaceAssignmentsEntity
+{
+    public string Id { get; set; } = string.Empty;
+    public string TournamentId { get; set; } = string.Empty;
+    public List<RingRaceAssignments> Rings { get; set; } = new();
+    public DateTime LastUpdated { get; set; }
+}
