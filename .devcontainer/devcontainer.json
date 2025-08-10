@@ -1,0 +1,55 @@
+{
+	"name": "FlyballStats.com (.NET Aspire)",
+	"image": "mcr.microsoft.com/devcontainers/dotnet:1-9.0-bookworm",
+	
+	"features": {
+		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers/features/node:1": {
+			"nodeGypDependencies": true,
+			"version": "lts"
+		}
+	},
+
+	"forwardPorts": [
+		5000,
+		5001,
+		15000,
+		15001,
+		15002,
+		15003,
+		15004
+	],
+
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"dotnet.preferCSharpExtension": true,
+				"omnisharp.useModernNet": true
+			},
+			"extensions": [
+				"ms-dotnettools.csharp",
+				"ms-dotnettools.csdevkit",
+				"ms-dotnettools.vscode-dotnet-runtime",
+				"ms-vscode.vscode-json",
+				"bradlc.vscode-tailwindcss",
+				"PKief.material-icon-theme"
+			]
+		}
+	},
+
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
+
+	"postStartCommand": "echo 'Container started. Use \"aspire run\" to start the application.'",
+
+	"remoteUser": "vscode",
+
+	"containerEnv": {
+		"DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+		"DOTNET_SKIP_FIRST_TIME_EXPERIENCE": "1",
+		"ASPNETCORE_ENVIRONMENT": "Development"
+	},
+
+	"mounts": [
+		"source=/var/run/docker.sock,target=/var/run/docker-host.sock,type=bind"
+	]
+}
