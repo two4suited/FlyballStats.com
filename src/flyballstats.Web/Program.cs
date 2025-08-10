@@ -19,6 +19,12 @@ builder.Services.AddHttpClient<WeatherApiClient>(client =>
         client.BaseAddress = new("https+http://apiservice");
     });
 
+builder.Services.AddHttpClient<TournamentApiClient>(client =>
+    {
+        // For development testing, use localhost when ApiService is running standalone
+        client.BaseAddress = new("http://localhost:5000");
+    });
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

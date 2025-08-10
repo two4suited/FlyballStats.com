@@ -1,0 +1,177 @@
+@page "/tournament-upload"
+@using Microsoft.AspNetCore.Components.Forms
+@inject TournamentApiClient TournamentApi
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Upload Tournament CSV</PageTitle>
+
+<h1>Upload Tournament CSV</h1>
+
+<p>Upload a CSV file containing race schedules. The CSV must have the following headers: Race Number, Left Team, Right Team, Division.</p>
+
+<div class="row">
+    <div class="col-md-8">
+        <EditForm Model="@uploadModel" OnValidSubmit="@HandleUpload">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label for="tournamentId" class="form-label">Tournament ID</label>
+                <InputText id="tournamentId" class="form-control" @bind-Value="uploadModel.TournamentId" placeholder="e.g., summer-2024" />
+                <ValidationMessage For="@(() => uploadModel.TournamentId)" />
+            </div>
+
+            <div class="mb-3">
+                <label for="tournamentName" class="form-label">Tournament Name</label>
+                <InputText id="tournamentName" class="form-control" @bind-Value="uploadModel.TournamentName" placeholder="e.g., Summer Championship 2024" />
+                <ValidationMessage For="@(() => uploadModel.TournamentName)" />
+            </div>
+
+            <div class="mb-3">
+                <label for="csvFile" class="form-label">CSV File</label>
+                <InputFile id="csvFile" class="form-control" OnChange="@HandleFileSelected" accept=".csv" />
+                @if (!string.IsNullOrEmpty(selectedFileName))
+                {
+                    <div class="form-text">Selected: @selectedFileName</div>
+                }
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary" disabled="@(isUploading || string.IsNullOrEmpty(csvContent))">
+                    @if (isUploading)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <text> Uploading...</text>
+                    }
+                    else
+                    {
+                        <text>Upload CSV</text>
+                    }
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@if (uploadResult != null)
+{
+    <div class="row">
+        <div class="col-md-12">
+            @if (uploadResult.Success)
+            {
+                <div class="alert alert-success" role="alert">
+                    <h4 class="alert-heading">Upload Successful!</h4>
+                    <p>@uploadResult.Message</p>
+                    @if (uploadResult.RacesImported.HasValue)
+                    {
+                        <p><strong>Races imported:</strong> @uploadResult.RacesImported</p>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-danger" role="alert">
+                    <h4 class="alert-heading">Upload Failed</h4>
+                    <p>@uploadResult.Message</p>
+                    
+                    @if (uploadResult.Errors != null && uploadResult.Errors.Count > 0)
+                    {
+                        <h5>Validation Errors:</h5>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Row</th>
+                                    <th>Field</th>
+                                    <th>Value</th>
+                                    <th>Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var error in uploadResult.Errors)
+                                {
+                                    <tr>
+                                        <td>@error.RowNumber</td>
+                                        <td>@error.Field</td>
+                                        <td>@error.Value</td>
+                                        <td>@error.Reason</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private UploadModel uploadModel = new();
+    private string? csvContent;
+    private string? selectedFileName;
+    private bool isUploading = false;
+    private CsvUploadResponse? uploadResult;
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        selectedFileName = file.Name;
+        
+        if (file.Size > 1024 * 1024) // 1MB limit
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "File size must be less than 1MB");
+            csvContent = null;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            using var reader = new StreamReader(stream);
+            csvContent = await reader.ReadToEndAsync();
+            StateHasChanged(); // Force UI update
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Error reading file: {ex.Message}");
+            csvContent = null;
+            selectedFileName = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleUpload()
+    {
+        if (string.IsNullOrEmpty(csvContent))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Please select a CSV file first");
+            return;
+        }
+
+        isUploading = true;
+        uploadResult = null;
+
+        try
+        {
+            uploadResult = await TournamentApi.UploadCsvAsync(uploadModel.TournamentId!, uploadModel.TournamentName!, csvContent);
+        }
+        catch (Exception ex)
+        {
+            uploadResult = new CsvUploadResponse(false, $"An error occurred: {ex.Message}", null, null);
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+
+    public class UploadModel
+    {
+        [Required]
+        public string? TournamentId { get; set; }
+
+        [Required]
+        public string? TournamentName { get; set; }
+    }
+}
