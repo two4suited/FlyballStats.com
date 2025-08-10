@@ -1,0 +1,323 @@
+@page "/tournament-schedule/{TournamentId}"
+@inject TournamentApiClient TournamentApi
+@inject NavigationManager Navigation
+
+<PageTitle>Tournament Schedule - FlyballStats.com</PageTitle>
+
+<style>
+    .schedule-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        margin: -1rem -1rem 2rem -1rem;
+        border-radius: 16px 16px 0 0;
+    }
+    .race-card {
+        transition: transform 0.1s ease-in-out;
+        border-left: 4px solid transparent;
+        border-radius: 8px;
+    }
+    .race-card:hover {
+        transform: translateX(4px);
+        border-left-color: var(--mud-palette-primary);
+    }
+    .team-vs {
+        background: #f5f5f5;
+        border-radius: 8px;
+        padding: 0.75rem;
+    }
+    .division-badge {
+        background: linear-gradient(45deg, #667eea 30%, #764ba2 90%);
+        color: white;
+        border-radius: 12px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .race-number {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.875rem;
+    }
+    .status-badge {
+        border-radius: 8px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .status-current {
+        background: #4caf50;
+        color: white;
+    }
+    .status-on-deck {
+        background: #ff9800;
+        color: white;
+    }
+    .status-in-the-hole {
+        background: #2196f3;
+        color: white;
+    }
+    .status-idle {
+        background: #e0e0e0;
+        color: #666;
+    }
+    .back-button {
+        margin-bottom: 1rem;
+    }
+</style>
+
+<div class="back-button">
+    <MudButton Variant="Variant.Text" 
+               Color="Color.Primary" 
+               StartIcon="@Icons.Material.Filled.ArrowBack"
+               OnClick="GoBack">
+        Back to Live Board
+    </MudButton>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-center py-8">
+        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+    </div>
+}
+else if (tournament == null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">
+        Tournament not found or could not be loaded.
+    </MudAlert>
+}
+else
+{
+    <div class="schedule-header">
+        <div class="d-flex align-center justify-space-between">
+            <div>
+                <MudText Typo="Typo.h4" Class="mb-2">@tournament.Name</MudText>
+                <MudText Typo="Typo.body1" Style="opacity: 0.9;">
+                    @tournament.Races.Count race@(tournament.Races.Count != 1 ? "s" : "") • @distinctDivisions.Count division@(distinctDivisions.Count != 1 ? "s" : "")
+                </MudText>
+            </div>
+            <MudIcon Icon="Icons.Material.Filled.Event" Style="font-size: 3rem; opacity: 0.7;" />
+        </div>
+    </div>
+
+    <!-- Tournament Stats -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 text-center" Elevation="1">
+                <MudIcon Icon="Icons.Material.Filled.DirectionsRun" Color="Color.Primary" Style="font-size: 2rem;" Class="mb-2" />
+                <MudText Typo="Typo.h6">@tournament.Races.Count</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Dark">Total Races</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 text-center" Elevation="1">
+                <MudIcon Icon="Icons.Material.Filled.Groups" Color="Color.Secondary" Style="font-size: 2rem;" Class="mb-2" />
+                <MudText Typo="Typo.h6">@distinctTeams.Count</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Dark">Teams</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 text-center" Elevation="1">
+                <MudIcon Icon="Icons.Material.Filled.Category" Color="Color.Tertiary" Style="font-size: 2rem;" Class="mb-2" />
+                <MudText Typo="Typo.h6">@distinctDivisions.Count</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Dark">Divisions</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Class="pa-4 text-center" Elevation="1">
+                <MudIcon Icon="Icons.Material.Filled.Numbers" Color="Color.Info" Style="font-size: 2rem;" Class="mb-2" />
+                <MudText Typo="Typo.h6">@tournament.Races.Min(r => r.RaceNumber) - @tournament.Races.Max(r => r.RaceNumber)</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Dark">Race Range</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Division Filter -->
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.h6" Class="mb-3">Filter by Division</MudText>
+        <div class="d-flex flex-wrap ga-2">
+            <MudChip T="string" Label="true" 
+                     Color="@(selectedDivision == "All" ? Color.Primary : Color.Default)"
+                     Variant="@(selectedDivision == "All" ? Variant.Filled : Variant.Outlined)"
+                     OnClick="SelectAllDivisions">
+                All Divisions (@tournament.Races.Count)
+            </MudChip>
+            @foreach (var division in distinctDivisions.OrderBy(d => d))
+            {
+                var raceCount = tournament.Races.Count(r => r.Division == division);
+                var currentDivision = division; // Capture for closure
+                <MudChip T="string" Label="true" 
+                         Color="@(selectedDivision == division ? Color.Primary : Color.Default)"
+                         Variant="@(selectedDivision == division ? Variant.Filled : Variant.Outlined)"
+                         OnClick="() => SetDivisionFilter(currentDivision)">
+                    @division (@raceCount)
+                </MudChip>
+            }
+        </div>
+    </MudPaper>
+
+    <!-- Race Schedule -->
+    <MudText Typo="Typo.h5" Class="mb-4">Race Schedule</MudText>
+    
+    @if (filteredRaces.Any())
+    {
+        @foreach (var race in filteredRaces.OrderBy(r => r.RaceNumber))
+        {
+            var assignment = raceAssignments?.FirstOrDefault(ra => ra.RaceNumber == race.RaceNumber);
+            var status = GetRaceStatus(assignment);
+            
+            <MudPaper Class="race-card pa-4 mb-3" Elevation="1">
+                <div class="d-flex align-center ga-4">
+                    <div class="race-number">@race.RaceNumber</div>
+                    
+                    <div class="flex-grow-1">
+                        <div class="team-vs">
+                            <div class="d-flex align-center justify-space-between">
+                                <MudText Typo="Typo.body1" Class="font-weight-medium">@race.LeftTeam</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Dark" Class="mx-4">VS</MudText>
+                                <MudText Typo="Typo.body1" Class="font-weight-medium">@race.RightTeam</MudText>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex flex-column align-end ga-2">
+                        <div class="division-badge">@race.Division</div>
+                        @if (assignment != null)
+                        {
+                            <div class="status-badge @GetStatusClass(status)">
+                                Ring @assignment.RingNumber - @status
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="status-badge status-idle">Unassigned</div>
+                        }
+                    </div>
+                </div>
+            </MudPaper>
+        }
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">
+            No races found for the selected division filter.
+        </MudAlert>
+    }
+}
+
+@code {
+    [Parameter] public string TournamentId { get; set; } = string.Empty;
+    
+    private Tournament? tournament;
+    private TournamentRaceAssignments? assignments;
+    private List<RaceAssignment> raceAssignments = new();
+    private HashSet<string> distinctDivisions = new();
+    private HashSet<string> distinctTeams = new();
+    private bool isLoading = true;
+    private string selectedDivision = "All";
+    
+    private IEnumerable<Race> filteredRaces => 
+        selectedDivision == "All" 
+            ? tournament?.Races ?? []
+            : tournament?.Races.Where(r => r.Division == selectedDivision) ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTournamentData();
+    }
+
+    private async Task LoadTournamentData()
+    {
+        try
+        {
+            isLoading = true;
+            
+            // Load tournament with races
+            tournament = await TournamentApi.GetTournamentAsync(TournamentId);
+            
+            if (tournament != null)
+            {
+                // Calculate statistics
+                distinctDivisions = tournament.Races.Select(r => r.Division).Where(d => !string.IsNullOrEmpty(d)).ToHashSet();
+                distinctTeams = tournament.Races
+                    .SelectMany(r => new[] { r.LeftTeam, r.RightTeam })
+                    .Where(t => !string.IsNullOrEmpty(t))
+                    .ToHashSet();
+                
+                // Load race assignments
+                try
+                {
+                    assignments = await TournamentApi.GetTournamentAssignmentsAsync(TournamentId);
+                    if (assignments != null)
+                    {
+                        raceAssignments = assignments.Rings
+                            .SelectMany(ring => new[] { ring.Current, ring.OnDeck, ring.InTheHole })
+                            .Where(assignment => assignment != null)
+                            .ToList()!;
+                    }
+                }
+                catch
+                {
+                    // Assignments are optional - tournament might not have any assignments yet
+                    raceAssignments = new();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // TODO: Add proper error handling/logging
+            Console.WriteLine($"Error loading tournament data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SetDivisionFilter(string division)
+    {
+        selectedDivision = division;
+    }
+
+    private void SelectAllDivisions()
+    {
+        selectedDivision = "All";
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/live-board");
+    }
+
+    private string GetRaceStatus(RaceAssignment? assignment)
+    {
+        return assignment?.Status switch
+        {
+            RingStatus.Current => "Current",
+            RingStatus.OnDeck => "On Deck",
+            RingStatus.InTheHole => "In the Hole",
+            _ => "Idle"
+        };
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Current" => "status-current",
+            "On Deck" => "status-on-deck",
+            "In the Hole" => "status-in-the-hole",
+            _ => "status-idle"
+        };
+    }
+}

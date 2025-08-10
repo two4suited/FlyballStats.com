@@ -27,7 +27,7 @@ builder.Services.AddHttpClient<TournamentApiClient>(client =>
     {
         // Use direct localhost URL for development without Aspire
         var baseAddress = builder.Environment.IsDevelopment() 
-            ? "http://localhost:5002" 
+            ? "http://localhost:5000" 
             : "https+http://apiservice";
         client.BaseAddress = new(baseAddress);
     });
