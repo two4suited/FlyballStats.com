@@ -47,6 +47,7 @@ public class RealTimePerformanceTests
         // Act - Perform multiple race assignments and measure latency
         for (int i = 0; i < testIterations; i++)
         {
+            // Ensure unique assignments by using allowConflictOverride and varying assignments
             var raceNumber = (i % tournament.Races.Count) + 1;
             var ringNumber = (i % ringConfig.Rings.Count) + 1;
             var status = (RingStatus)(i % 3); // Cycle through Current, OnDeck, InTheHole
@@ -58,7 +59,8 @@ public class RealTimePerformanceTests
             }
 
             var stopwatch = Stopwatch.StartNew();
-            var result = await _raceAssignmentService.AssignRaceAsync(tournamentId, raceNumber, ringNumber, status);
+            // Use conflict override to ensure all assignments succeed for performance testing
+            var result = await _raceAssignmentService.AssignRaceAsync(tournamentId, raceNumber, ringNumber, status, allowConflictOverride: true);
             stopwatch.Stop();
 
             latencies.Add(stopwatch.ElapsedMilliseconds);
@@ -151,6 +153,7 @@ public class RealTimePerformanceTests
         _mockNotificationService.Verify(x => x.RecordLatencyMetric(
             "RaceAssignmentUpdate", It.IsAny<long>()), Times.Once);
     }
+
 
     private Tournament CreateTestTournament(string tournamentId, int raceCount = 10)
     {

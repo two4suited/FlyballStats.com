@@ -1,4 +1,4 @@
-name: .NET Build & Test
+name: "CI: Build & Test"
 
 on:
   push:
@@ -15,6 +15,8 @@ on:
 
 permissions:
   contents: read
+  checks: write
+  pull-requests: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -58,7 +60,8 @@ jobs:
           dotnet test "$SOLUTION_PATH" \
             --configuration Release \
             --no-build \
-            --logger "trx;LogFileName=test-results.trx"
+            --logger "trx;LogFileName=test-results.trx" \
+            --logger "console;verbosity=detailed"
 
       - name: Upload test results
         if: always()
@@ -68,3 +71,13 @@ jobs:
           path: |
             **/TestResults/*.trx
           if-no-files-found: ignore
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: .NET Tests
+          path: "**/TestResults/*.trx"
+          reporter: dotnet-trx
+          fail-on-error: false
+          fail-on-empty: false
