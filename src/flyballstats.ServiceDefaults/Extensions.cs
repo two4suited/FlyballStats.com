@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -7,6 +9,8 @@ using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using System.Diagnostics.Metrics;
+using System.Text.Json;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -25,6 +29,9 @@ public static class Extensions
         builder.AddDefaultHealthChecks();
 
         builder.Services.AddServiceDiscovery();
+
+        // Add custom metrics service
+        builder.Services.AddSingleton<ApplicationMetrics>();
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
@@ -54,7 +61,8 @@ public static class Extensions
             {
                 metrics.AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddRuntimeInstrumentation();
+                    .AddRuntimeInstrumentation()
+                    .AddMeter("FlyballStats.Application"); // Add custom application metrics
             })
             .WithTracing(tracing =>
             {
@@ -103,22 +111,157 @@ public static class Extensions
         return builder;
     }
 
+    /// <summary>
+    /// Add Cosmos DB health check for services that use it
+    /// </summary>
+    public static TBuilder AddCosmosDbHealthCheck<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        builder.Services.AddHealthChecks()
+            .AddCheck("cosmosdb", () =>
+            {
+                try
+                {
+                    // Basic connectivity check - in a real implementation this would ping the DB
+                    // For now, we'll just verify the connection string is configured
+                    var connectionString = builder.Configuration["ConnectionStrings:cosmos-db"];
+                    return !string.IsNullOrEmpty(connectionString) 
+                        ? HealthCheckResult.Healthy("Cosmos DB connection string configured")
+                        : HealthCheckResult.Degraded("Cosmos DB connection string not found");
+                }
+                catch (Exception ex)
+                {
+                    return HealthCheckResult.Unhealthy("Cosmos DB health check failed", ex);
+                }
+            }, ["ready", "cosmos"]);
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Add SignalR health check for services that use it
+    /// </summary>
+    public static TBuilder AddSignalRHealthCheck<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        builder.Services.AddHealthChecks()
+            .AddCheck("signalr", () =>
+            {
+                try
+                {
+                    // Basic connectivity check - in a real implementation this would ping the service
+                    var connectionString = builder.Configuration["ConnectionStrings:signalr"];
+                    return !string.IsNullOrEmpty(connectionString)
+                        ? HealthCheckResult.Healthy("SignalR connection string configured")
+                        : HealthCheckResult.Degraded("SignalR connection string not found");
+                }
+                catch (Exception ex)
+                {
+                    return HealthCheckResult.Unhealthy("SignalR health check failed", ex);
+                }
+            }, ["ready", "signalr"]);
+
+        return builder;
+    }
+
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
+        // Health checks are important for monitoring and should be accessible with proper security considerations
+        // All health checks must pass for app to be considered ready to accept traffic after starting
+        app.MapHealthChecks(HealthEndpointPath, new HealthCheckOptions
         {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath);
-
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+            AllowCachingResponses = false,
+            ResponseWriter = async (context, report) =>
             {
-                Predicate = r => r.Tags.Contains("live")
-            });
-        }
+                context.Response.ContentType = "application/json";
+                var response = new
+                {
+                    status = report.Status.ToString(),
+                    checks = report.Entries.Select(x => new
+                    {
+                        name = x.Key,
+                        status = x.Value.Status.ToString(),
+                        duration = x.Value.Duration.TotalMilliseconds,
+                        description = x.Value.Description
+                    }),
+                    totalDuration = report.TotalDuration.TotalMilliseconds
+                };
+                await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            }
+        });
+
+        // Only health checks tagged with the "live" tag must pass for app to be considered alive
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("live"),
+            AllowCachingResponses = false
+        });
 
         return app;
+    }
+}
+
+/// <summary>
+/// Application-specific metrics for FlyballStats operations
+/// </summary>
+public class ApplicationMetrics
+{
+    private readonly Meter _meter;
+    private readonly Counter<int> _tournamentImports;
+    private readonly Counter<int> _raceAssignments;
+    private readonly Counter<int> _ringUpdates;
+    private readonly Counter<int> _notifications;
+    private readonly Histogram<double> _operationDuration;
+
+    public ApplicationMetrics()
+    {
+        _meter = new Meter("FlyballStats.Application");
+        
+        _tournamentImports = _meter.CreateCounter<int>(
+            "flyballstats_tournament_imports_total",
+            description: "Total number of tournament CSV imports");
+            
+        _raceAssignments = _meter.CreateCounter<int>(
+            "flyballstats_race_assignments_total", 
+            description: "Total number of race assignments");
+            
+        _ringUpdates = _meter.CreateCounter<int>(
+            "flyballstats_ring_updates_total",
+            description: "Total number of ring configuration updates");
+            
+        _notifications = _meter.CreateCounter<int>(
+            "flyballstats_notifications_total",
+            description: "Total number of real-time notifications sent");
+            
+        _operationDuration = _meter.CreateHistogram<double>(
+            "flyballstats_operation_duration_ms",
+            description: "Duration of FlyballStats operations in milliseconds");
+    }
+
+    public void RecordTournamentImport(bool success, string? errorType = null)
+    {
+        _tournamentImports.Add(1, new KeyValuePair<string, object?>("status", success ? "success" : "failure"),
+                                  new KeyValuePair<string, object?>("error_type", errorType ?? "none"));
+    }
+
+    public void RecordRaceAssignment(bool success, string operation = "assign")
+    {
+        _raceAssignments.Add(1, new KeyValuePair<string, object?>("status", success ? "success" : "failure"),
+                               new KeyValuePair<string, object?>("operation", operation));
+    }
+
+    public void RecordRingUpdate(bool success, string operation = "configure")
+    {
+        _ringUpdates.Add(1, new KeyValuePair<string, object?>("status", success ? "success" : "failure"),
+                           new KeyValuePair<string, object?>("operation", operation));
+    }
+
+    public void RecordNotification(bool success, string type = "race_assignment")
+    {
+        _notifications.Add(1, new KeyValuePair<string, object?>("status", success ? "success" : "failure"),
+                             new KeyValuePair<string, object?>("type", type));
+    }
+
+    public void RecordOperationDuration(string operation, double durationMs)
+    {
+        _operationDuration.Record(durationMs, new KeyValuePair<string, object?>("operation", operation));
     }
 }

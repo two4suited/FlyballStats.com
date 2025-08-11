@@ -1,6 +1,7 @@
 using flyballstats.ApiService.Hubs;
 using flyballstats.ApiService.Models;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 
 namespace flyballstats.ApiService.Services;
@@ -12,21 +13,25 @@ public class SignalRNotificationService : IRealTimeNotificationService
 {
     private readonly IHubContext<RaceAssignmentHub> _hubContext;
     private readonly ILogger<SignalRNotificationService> _logger;
+    private readonly ApplicationMetrics _metrics;
 
-    public SignalRNotificationService(IHubContext<RaceAssignmentHub> hubContext, ILogger<SignalRNotificationService> logger)
+    public SignalRNotificationService(IHubContext<RaceAssignmentHub> hubContext, ILogger<SignalRNotificationService> logger, ApplicationMetrics metrics)
     {
         _hubContext = hubContext;
         _logger = logger;
+        _metrics = metrics;
     }
 
     public async Task NotifyRaceAssignmentUpdated(string tournamentId, TournamentRaceAssignments assignments)
     {
         var stopwatch = Stopwatch.StartNew();
+        var success = false;
         try
         {
             await _hubContext.Clients.Group($"tournament_{tournamentId}")
                 .SendAsync("RaceAssignmentUpdated", assignments);
             
+            success = true;
             _logger.LogInformation("Notified clients about race assignment update for tournament {TournamentId}", tournamentId);
         }
         catch (Exception ex)
@@ -36,6 +41,8 @@ public class SignalRNotificationService : IRealTimeNotificationService
         finally
         {
             stopwatch.Stop();
+            _metrics.RecordNotification(success, "race_assignment");
+            _metrics.RecordOperationDuration("notification_race_assignment", stopwatch.ElapsedMilliseconds);
             await RecordLatencyMetric("RaceAssignmentUpdate", stopwatch.ElapsedMilliseconds);
         }
     }
@@ -43,11 +50,13 @@ public class SignalRNotificationService : IRealTimeNotificationService
     public async Task NotifyRingCleared(string tournamentId, int ringNumber, TournamentRaceAssignments assignments)
     {
         var stopwatch = Stopwatch.StartNew();
+        var success = false;
         try
         {
             await _hubContext.Clients.Group($"tournament_{tournamentId}")
                 .SendAsync("RingCleared", new { RingNumber = ringNumber, Assignments = assignments });
             
+            success = true;
             _logger.LogInformation("Notified clients about ring {RingNumber} cleared for tournament {TournamentId}", ringNumber, tournamentId);
         }
         catch (Exception ex)
@@ -57,6 +66,8 @@ public class SignalRNotificationService : IRealTimeNotificationService
         finally
         {
             stopwatch.Stop();
+            _metrics.RecordNotification(success, "ring_clear");
+            _metrics.RecordOperationDuration("notification_ring_clear", stopwatch.ElapsedMilliseconds);
             await RecordLatencyMetric("RingClear", stopwatch.ElapsedMilliseconds);
         }
     }

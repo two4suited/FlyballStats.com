@@ -1,16 +1,19 @@
 using flyballstats.ApiService.Models;
 using flyballstats.ApiService.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 
 namespace flyballstats.ApiService.Services;
 
 public class TournamentDataService
 {
     private readonly FlyballStatsDbContext _context;
+    private readonly ApplicationMetrics _metrics;
 
-    public TournamentDataService(FlyballStatsDbContext context)
+    public TournamentDataService(FlyballStatsDbContext context, ApplicationMetrics metrics)
     {
         _context = context;
+        _metrics = metrics;
     }
 
     public async Task<Tournament?> GetTournamentAsync(string tournamentId)
@@ -99,26 +102,39 @@ public class TournamentDataService
 
     public async Task<TournamentRingConfiguration> SaveRingConfigurationAsync(string tournamentId, List<RingConfiguration> rings)
     {
-        var existingEntity = await _context.RingConfigurations.FirstOrDefaultAsync(rc => rc.TournamentId == tournamentId);
-        
-        if (existingEntity != null)
+        try
         {
-            existingEntity.Rings = rings;
-            _context.RingConfigurations.Update(existingEntity);
-        }
-        else
-        {
-            var newEntity = new TournamentRingConfigurationEntity
+            var existingEntity = await _context.RingConfigurations.FirstOrDefaultAsync(rc => rc.TournamentId == tournamentId);
+            
+            if (existingEntity != null)
             {
-                Id = tournamentId,
-                TournamentId = tournamentId,
-                Rings = rings
-            };
-            _context.RingConfigurations.Add(newEntity);
-        }
+                existingEntity.Rings = rings;
+                _context.RingConfigurations.Update(existingEntity);
+            }
+            else
+            {
+                var newEntity = new TournamentRingConfigurationEntity
+                {
+                    Id = tournamentId,
+                    TournamentId = tournamentId,
+                    Rings = rings
+                };
+                _context.RingConfigurations.Add(newEntity);
+            }
 
-        await _context.SaveChangesAsync();
-        return new TournamentRingConfiguration(tournamentId, rings);
+            await _context.SaveChangesAsync();
+            
+            // Record successful ring configuration
+            _metrics.RecordRingUpdate(true, "configure");
+            
+            return new TournamentRingConfiguration(tournamentId, rings);
+        }
+        catch (Exception)
+        {
+            // Record failed ring configuration
+            _metrics.RecordRingUpdate(false, "configure");
+            throw;
+        }
     }
 
     public TournamentRingConfiguration SaveRingConfiguration(string tournamentId, List<RingConfiguration> rings)

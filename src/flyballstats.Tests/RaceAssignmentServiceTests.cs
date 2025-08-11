@@ -1,6 +1,7 @@
 using flyballstats.ApiService.Models;
 using flyballstats.ApiService.Services;
 using flyballstats.ApiService.Data;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -15,6 +16,7 @@ public class RaceAssignmentServiceTests
     private readonly RaceAssignmentService _raceAssignmentService;
     private readonly Mock<IRealTimeNotificationService> _mockNotificationService;
     private readonly Mock<ILogger<RaceAssignmentService>> _mockLogger;
+    private readonly ApplicationMetrics _metrics;
 
     public RaceAssignmentServiceTests()
     {
@@ -22,10 +24,11 @@ public class RaceAssignmentServiceTests
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
         _context = new FlyballStatsDbContext(options);
-        _tournamentDataService = new TournamentDataService(_context);
+        _metrics = new ApplicationMetrics();
+        _tournamentDataService = new TournamentDataService(_context, _metrics);
         _mockNotificationService = new Mock<IRealTimeNotificationService>();
         _mockLogger = new Mock<ILogger<RaceAssignmentService>>();
-        _raceAssignmentService = new RaceAssignmentService(_context, _tournamentDataService, _mockNotificationService.Object, _mockLogger.Object);
+        _raceAssignmentService = new RaceAssignmentService(_context, _tournamentDataService, _mockNotificationService.Object, _mockLogger.Object, _metrics);
     }
 
     [Fact]
