@@ -143,7 +143,7 @@ public class AuthorizationServiceTests
 
         // Assert
         _mockAuthService.Verify(
-            x => x.LogAuthorizationAttemptAsync(user.Id, action, resource, false, reason),
+            x => x.LogAuthorizationAttemptAsync(user.Id, action, resource, false, reason, null, null),
             Times.Once);
     }
 
