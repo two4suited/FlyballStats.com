@@ -195,7 +195,7 @@ public class AuthenticationServiceTests : IDisposable
         _context.Users.Add(originalUser);
         await _context.SaveChangesAsync();
 
-        var user = new User(originalUser.Id, originalUser.Username, originalUser.Email, originalUser.Role);
+        var user = new User(originalUser.Id, originalUser.Username, originalUser.Email, originalUser.Role, true);
         var token = _authService.GenerateToken(user);
 
         // Act
@@ -206,6 +206,18 @@ public class AuthenticationServiceTests : IDisposable
         Assert.Equal(originalUser.Id, retrievedUser.Id);
         Assert.Equal(originalUser.Username, retrievedUser.Username);
         Assert.Equal(originalUser.Role, retrievedUser.Role);
+    }
+
+    [Fact]
+    public async Task SimpleJwtTest()
+    {
+        // Very simple test to isolate the JWT issue
+        var user = new User("simple-id", "simple-user", "simple@test.com", UserRole.Viewer, true);
+        var token = _authService.GenerateToken(user);
+        
+        // Just check if validation works at all
+        var isValid = await _authService.ValidateTokenAsync(token);
+        Assert.True(isValid);
     }
 
     [Fact]

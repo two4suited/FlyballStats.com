@@ -17,28 +17,46 @@ public class FlyballStatsDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Configure Tournament entity
+        // Check if we're using Cosmos DB provider
+        var isCosmosDb = Database.ProviderName == "Microsoft.EntityFrameworkCore.Cosmos";
+        
+        if (isCosmosDb)
+        {
+            // Configure Tournament entity for Cosmos DB
+            modelBuilder.Entity<TournamentEntity>()
+                .ToContainer("Tournaments")
+                .HasPartitionKey(t => t.Id);
+        }
+        
+        // Configure Tournament entity (common for all providers)
         modelBuilder.Entity<TournamentEntity>()
-            .ToContainer("Tournaments")
-            .HasPartitionKey(t => t.Id)
             .Property(t => t.Id)
             .ValueGeneratedNever();
 
-        // Configure the Races as an owned collection (stored as JSON in Cosmos DB)
+        // Configure the Races as an owned collection
         modelBuilder.Entity<TournamentEntity>()
             .OwnsMany(t => t.Races, builder =>
             {
-                builder.ToJsonProperty("races");
+                if (isCosmosDb)
+                {
+                    builder.ToJsonProperty("races");
+                }
                 builder.Property(r => r.RaceNumber);
                 builder.Property(r => r.LeftTeam);
                 builder.Property(r => r.RightTeam);
                 builder.Property(r => r.Division);
             });
 
-        // Configure TournamentRingConfiguration entity
+        if (isCosmosDb)
+        {
+            // Configure TournamentRingConfiguration entity for Cosmos DB
+            modelBuilder.Entity<TournamentRingConfigurationEntity>()
+                .ToContainer("RingConfigurations")
+                .HasPartitionKey(rc => rc.TournamentId);
+        }
+        
+        // Configure TournamentRingConfiguration entity (common for all providers)
         modelBuilder.Entity<TournamentRingConfigurationEntity>()
-            .ToContainer("RingConfigurations")
-            .HasPartitionKey(rc => rc.TournamentId)
             .Property(rc => rc.Id)
             .ValueGeneratedNever();
 
@@ -46,15 +64,24 @@ public class FlyballStatsDbContext : DbContext
         modelBuilder.Entity<TournamentRingConfigurationEntity>()
             .OwnsMany(rc => rc.Rings, builder =>
             {
-                builder.ToJsonProperty("rings");
+                if (isCosmosDb)
+                {
+                    builder.ToJsonProperty("rings");
+                }
                 builder.Property(r => r.RingNumber);
                 builder.Property(r => r.Color);
             });
 
-        // Configure TournamentRaceAssignments entity
+        if (isCosmosDb)
+        {
+            // Configure TournamentRaceAssignments entity for Cosmos DB
+            modelBuilder.Entity<TournamentRaceAssignmentsEntity>()
+                .ToContainer("RaceAssignments")
+                .HasPartitionKey(ra => ra.TournamentId);
+        }
+        
+        // Configure TournamentRaceAssignments entity (common for all providers)
         modelBuilder.Entity<TournamentRaceAssignmentsEntity>()
-            .ToContainer("RaceAssignments")
-            .HasPartitionKey(ra => ra.TournamentId)
             .Property(ra => ra.Id)
             .ValueGeneratedNever();
 
@@ -73,17 +100,29 @@ public class FlyballStatsDbContext : DbContext
                 c => System.Text.Json.JsonSerializer.Deserialize<List<RingRaceAssignments>>(System.Text.Json.JsonSerializer.Serialize(c, jsonOptions), jsonOptions)!
             ));
 
-        // Configure User entity
+        if (isCosmosDb)
+        {
+            // Configure User entity for Cosmos DB
+            modelBuilder.Entity<UserEntity>()
+                .ToContainer("Users")
+                .HasPartitionKey(u => u.Id);
+        }
+        
+        // Configure User entity (common for all providers)
         modelBuilder.Entity<UserEntity>()
-            .ToContainer("Users")
-            .HasPartitionKey(u => u.Id)
             .Property(u => u.Id)
             .ValueGeneratedNever();
 
-        // Configure AuthorizationLog entity
+        if (isCosmosDb)
+        {
+            // Configure AuthorizationLog entity for Cosmos DB
+            modelBuilder.Entity<AuthorizationLogEntity>()
+                .ToContainer("AuthorizationLogs")
+                .HasPartitionKey(al => al.UserId);
+        }
+        
+        // Configure AuthorizationLog entity (common for all providers)
         modelBuilder.Entity<AuthorizationLogEntity>()
-            .ToContainer("AuthorizationLogs")
-            .HasPartitionKey(al => al.UserId)
             .Property(al => al.Id)
             .ValueGeneratedNever();
 
