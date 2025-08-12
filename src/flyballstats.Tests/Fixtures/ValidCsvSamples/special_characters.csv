@@ -1,0 +1,4 @@
+Race Number,Left Team,Right Team,Division
+1,"Team with, comma in name","Another with ""quotes"" and commas",Regular
+2,Special_Characters@Team!#$%,Ñoño-López & Associates,Regular
+3,VeryLongTeamNameThatExceedsNormalLengthButShouldStillBeValidForTestingPurposes,AnotherVeryLongTeamNameThatTestsBoundaryConditions,Regular

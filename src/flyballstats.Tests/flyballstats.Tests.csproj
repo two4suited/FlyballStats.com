@@ -29,6 +29,13 @@
   <ItemGroup>
     <ProjectReference Include="..\flyballstats.Web\flyballstats.Web.csproj" />
     <ProjectReference Include="..\flyballstats.ApiService\flyballstats.ApiService.csproj" />
+    <ProjectReference Include="..\flyballstats.ServiceDefaults\flyballstats.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Fixtures\**\*.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
