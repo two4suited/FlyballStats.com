@@ -182,30 +182,31 @@ public class AuthenticationServiceTests : IDisposable
     [Fact]
     public async Task GetUserFromTokenAsync_WithValidToken_ReturnsUser()
     {
-        // Arrange
-        var originalUser = new UserEntity
+        // Arrange - use the exact same pattern as the working LoginAsync test
+        var user = new UserEntity
         {
-            Id = "test-user-4",
+            Id = "test-user-1", // Use same ID as working test to rule out ID-specific issues
             Username = "tokenuser",
             Email = "token@example.com",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
             Role = UserRole.RaceDirector,
             IsActive = true
         };
-        _context.Users.Add(originalUser);
+        _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        var user = new User(originalUser.Id, originalUser.Username, originalUser.Email, originalUser.Role, true);
-        var token = _authService.GenerateToken(user);
+        // Create the User object and generate token
+        var userModel = new User(user.Id, user.Username, user.Email, user.Role, user.IsActive);
+        var token = _authService.GenerateToken(userModel);
 
         // Act
         var retrievedUser = await _authService.GetUserFromTokenAsync(token);
 
         // Assert
         Assert.NotNull(retrievedUser);
-        Assert.Equal(originalUser.Id, retrievedUser.Id);
-        Assert.Equal(originalUser.Username, retrievedUser.Username);
-        Assert.Equal(originalUser.Role, retrievedUser.Role);
+        Assert.Equal(user.Id, retrievedUser.Id);
+        Assert.Equal(user.Username, retrievedUser.Username);
+        Assert.Equal(user.Role, retrievedUser.Role);
     }
 
     [Fact]
