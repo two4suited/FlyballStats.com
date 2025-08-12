@@ -6,6 +6,66 @@ public record Race(
     string RightTeam,
     string Division);
 
+// Authentication and Authorization Models
+public enum UserRole
+{
+    Viewer = 0,
+    RaceDirector = 1,
+    Director = 2
+}
+
+public record User(
+    string Id,
+    string Username,
+    string Email,
+    UserRole Role,
+    bool IsActive = true);
+
+public record LoginRequest(
+    string Username,
+    string Password);
+
+public record LoginResponse(
+    bool Success,
+    string? Token,
+    User? User,
+    string? Message);
+
+public record AuthorizationLogEntry(
+    string UserId,
+    string Action,
+    string Resource,
+    bool Success,
+    string? Reason,
+    DateTime Timestamp);
+
+// User Entity for Cosmos DB
+public class UserEntity
+{
+    public string Id { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = string.Empty;
+    public UserRole Role { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastLoginAt { get; set; }
+}
+
+// Authorization Log Entity for Cosmos DB
+public class AuthorizationLogEntity
+{
+    public string Id { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+    public string Action { get; set; } = string.Empty;
+    public string Resource { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public string? Reason { get; set; }
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public string? UserAgent { get; set; }
+    public string? IpAddress { get; set; }
+}
+
 public record Tournament(
     string Id,
     string Name,

@@ -1,0 +1,95 @@
+@using flyballstats.Web.Services
+@inject IAuthenticationClientService AuthService
+@inject IDialogService DialogService
+
+<div class="d-flex align-center justify-end">
+    @if (AuthService.IsAuthenticated)
+    {
+        <MudChip Icon="@GetRoleIcon()" Color="@GetRoleColor()" Text="@GetRoleText()" Class="mr-3" T="string" />
+        <MudText Class="mr-3">@AuthService.CurrentUser?.Username</MudText>
+        <MudButton Variant="Variant.Text" StartIcon="Icons.Material.Filled.Logout" OnClick="Logout">
+            Logout
+        </MudButton>
+    }
+    else
+    {
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="Icons.Material.Filled.Login" OnClick="ShowLoginDialog">
+            Login
+        </MudButton>
+    }
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await AuthService.InitializeAsync();
+    }
+
+    private void OnAuthenticationStateChanged(object? sender, bool isAuthenticated)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowLoginDialog()
+    {
+        var options = new DialogOptions 
+        { 
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<LoginDialog>("Login", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        StateHasChanged();
+    }
+
+    private string GetRoleIcon()
+    {
+        return AuthService.CurrentUser?.Role switch
+        {
+            UserRole.Director => Icons.Material.Filled.AdminPanelSettings,
+            UserRole.RaceDirector => Icons.Material.Filled.DirectionsRun,
+            UserRole.Viewer => Icons.Material.Filled.Visibility,
+            _ => Icons.Material.Filled.Person
+        };
+    }
+
+    private Color GetRoleColor()
+    {
+        return AuthService.CurrentUser?.Role switch
+        {
+            UserRole.Director => Color.Error,
+            UserRole.RaceDirector => Color.Warning,
+            UserRole.Viewer => Color.Info,
+            _ => Color.Default
+        };
+    }
+
+    private string GetRoleText()
+    {
+        return AuthService.CurrentUser?.Role switch
+        {
+            UserRole.Director => "Director",
+            UserRole.RaceDirector => "Race Director",
+            UserRole.Viewer => "Viewer",
+            _ => "Unknown"
+        };
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}
