@@ -12,6 +12,8 @@ public class FlyballStatsDbContext : DbContext
     public DbSet<TournamentEntity> Tournaments { get; set; }
     public DbSet<TournamentRingConfigurationEntity> RingConfigurations { get; set; }
     public DbSet<TournamentRaceAssignmentsEntity> RaceAssignments { get; set; }
+    public DbSet<UserEntity> Users { get; set; }
+    public DbSet<AuthorizationLogEntity> AuthorizationLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,6 +72,20 @@ public class FlyballStatsDbContext : DbContext
                 c => c == null ? 0 : System.Text.Json.JsonSerializer.Serialize(c, jsonOptions).GetHashCode(),
                 c => System.Text.Json.JsonSerializer.Deserialize<List<RingRaceAssignments>>(System.Text.Json.JsonSerializer.Serialize(c, jsonOptions), jsonOptions)!
             ));
+
+        // Configure User entity
+        modelBuilder.Entity<UserEntity>()
+            .ToContainer("Users")
+            .HasPartitionKey(u => u.Id)
+            .Property(u => u.Id)
+            .ValueGeneratedNever();
+
+        // Configure AuthorizationLog entity
+        modelBuilder.Entity<AuthorizationLogEntity>()
+            .ToContainer("AuthorizationLogs")
+            .HasPartitionKey(al => al.UserId)
+            .Property(al => al.Id)
+            .ValueGeneratedNever();
 
         base.OnModelCreating(modelBuilder);
     }
