@@ -1,6 +1,7 @@
 using flyballstats.ApiService.Models;
 using flyballstats.ApiService.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 
 namespace flyballstats.ApiService.Services;
@@ -11,13 +12,15 @@ public class RaceAssignmentService
     private readonly TournamentDataService _tournamentDataService;
     private readonly IRealTimeNotificationService _notificationService;
     private readonly ILogger<RaceAssignmentService> _logger;
+    private readonly ApplicationMetrics _metrics;
 
-    public RaceAssignmentService(FlyballStatsDbContext context, TournamentDataService tournamentDataService, IRealTimeNotificationService notificationService, ILogger<RaceAssignmentService> logger)
+    public RaceAssignmentService(FlyballStatsDbContext context, TournamentDataService tournamentDataService, IRealTimeNotificationService notificationService, ILogger<RaceAssignmentService> logger, ApplicationMetrics metrics)
     {
         _context = context;
         _tournamentDataService = tournamentDataService;
         _notificationService = notificationService;
         _logger = logger;
+        _metrics = metrics;
     }
 
     public async Task<TournamentRaceAssignments?> GetTournamentAssignmentsAsync(string tournamentId)
@@ -98,6 +101,10 @@ public class RaceAssignmentService
 
             operationStopwatch.Stop();
             
+            // Record application metrics
+            _metrics.RecordRaceAssignment(true, "assign");
+            _metrics.RecordOperationDuration("race_assignment", operationStopwatch.ElapsedMilliseconds);
+            
             // Record performance metrics
             await _notificationService.RecordLatencyMetric("RaceAssignmentUpdate", operationStopwatch.ElapsedMilliseconds);
             
@@ -108,6 +115,11 @@ public class RaceAssignmentService
         catch (Exception ex)
         {
             operationStopwatch.Stop();
+            
+            // Record failed metrics
+            _metrics.RecordRaceAssignment(false, "assign");
+            _metrics.RecordOperationDuration("race_assignment", operationStopwatch.ElapsedMilliseconds);
+            
             _logger.LogError(ex, "Error assigning race {RaceNumber} to ring {RingNumber} in tournament {TournamentId} after {ElapsedMs}ms", 
                 raceNumber, ringNumber, tournamentId, operationStopwatch.ElapsedMilliseconds);
             return new AssignRaceResponse(false, $"An error occurred: {ex.Message}", null, null);
@@ -161,6 +173,10 @@ public class RaceAssignmentService
 
             operationStopwatch.Stop();
             
+            // Record application metrics
+            _metrics.RecordRingUpdate(true, "clear");
+            _metrics.RecordOperationDuration("ring_clear", operationStopwatch.ElapsedMilliseconds);
+            
             // Record performance metrics
             await _notificationService.RecordLatencyMetric("RingClear", operationStopwatch.ElapsedMilliseconds);
             
@@ -172,6 +188,11 @@ public class RaceAssignmentService
         catch (Exception ex)
         {
             operationStopwatch.Stop();
+            
+            // Record failed metrics
+            _metrics.RecordRingUpdate(false, "clear");
+            _metrics.RecordOperationDuration("ring_clear", operationStopwatch.ElapsedMilliseconds);
+            
             _logger.LogError(ex, "Error clearing ring {RingNumber} in tournament {TournamentId} after {ElapsedMs}ms", 
                 ringNumber, tournamentId, operationStopwatch.ElapsedMilliseconds);
             return new ClearRingResponse(false, $"An error occurred: {ex.Message}", null);

@@ -8,6 +8,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 
+// Add dependency-specific health checks
+builder.AddCosmosDbHealthCheck();
+builder.AddSignalRHealthCheck();
+
 // Add Cosmos DB via Aspire
  builder.AddCosmosDbContext<FlyballStatsDbContext>("cosmos-db", "flyballstats");
 
