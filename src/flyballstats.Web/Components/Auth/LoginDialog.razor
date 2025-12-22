@@ -1,0 +1,90 @@
+@using flyballstats.Web.Services
+@inject IAuthenticationClientService AuthService
+@inject IJSRuntime JSRuntime
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="Icons.Material.Filled.Login" Class="mr-3 mb-n1" />
+            Login
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="d-flex flex-column">
+            <MudTextField @bind-Value="Username" Label="Username" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField @bind-Value="Password" Label="Password" Variant="Variant.Outlined" 
+                         InputType="InputType.Password" Class="mb-3" />
+            
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mb-3">@ErrorMessage</MudAlert>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Login" Disabled="IsLoading">
+            @if (IsLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            }
+            Login
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudBlazor.IDialogReference? MudDialog { get; set; }
+    
+    private string Username = string.Empty;
+    private string Password = string.Empty;
+    private string ErrorMessage = string.Empty;
+    private bool IsLoading = false;
+
+    private async Task Login()
+    {
+        if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
+        {
+            ErrorMessage = "Please enter both username and password.";
+            return;
+        }
+
+        IsLoading = true;
+        ErrorMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            var success = await AuthService.LoginAsync(Username, Password);
+            if (success)
+            {
+                MudDialog?.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                ErrorMessage = "Invalid username or password.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "An error occurred during login. Please try again.";
+            // In a real app, you'd want to log this properly
+            Console.WriteLine($"Login error: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Cancel() => MudDialog?.Close();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.CompletedTask;
+        }
+    }
+}

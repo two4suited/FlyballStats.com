@@ -23,10 +23,19 @@ builder.Services.AddOutputCache();
 // Add custom services
 builder.Services.AddSingleton<ErrorReportService>();
 builder.Services.AddSingleton<RealTimeService>();
-
-
+builder.Services.AddScoped<IAuthenticationClientService, AuthenticationClientService>();
 
 builder.Services.AddHttpClient<TournamentApiClient>(client =>
+    {
+        // Use direct localhost URL for development without Aspire
+        var baseAddress = builder.Environment.IsDevelopment() 
+            ? "http://localhost:5000" 
+            : "https+http://apiservice";
+        client.BaseAddress = new(baseAddress);
+    });
+
+// Add a separate HttpClient for authentication
+builder.Services.AddHttpClient<IAuthenticationClientService, AuthenticationClientService>(client =>
     {
         // Use direct localhost URL for development without Aspire
         var baseAddress = builder.Environment.IsDevelopment() 

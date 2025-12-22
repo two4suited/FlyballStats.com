@@ -6,6 +6,31 @@ public record Race(
     string RightTeam,
     string Division);
 
+// Authentication and Authorization Models
+public enum UserRole
+{
+    Viewer = 0,
+    RaceDirector = 1,
+    Director = 2
+}
+
+public record User(
+    string Id,
+    string Username,
+    string Email,
+    UserRole Role,
+    bool IsActive = true);
+
+public record LoginRequest(
+    string Username,
+    string Password);
+
+public record LoginResponse(
+    bool Success,
+    string? Token,
+    User? User,
+    string? Message);
+
 public record Tournament(
     string Id,
     string Name,
